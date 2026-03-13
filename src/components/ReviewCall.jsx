@@ -21,7 +21,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
   const [tab, setTab] = useState('manual')
   const [form, setForm] = useState({
     agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0],
-    callLink: '', reviewer: '', notes: '',
+    callLink: '', reviewer: '', notes: '', grade: '',
   })
   const [scores, setScores] = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
@@ -40,7 +40,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     }
     const passed = state.criteria.length === 0 || state.criteria.every((c) => scores[c.id] === 'pass')
     addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
-    setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '' })
+    setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
     setScores({})
     emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
   }
@@ -110,6 +110,16 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   <Field label="Reviewer">
                     <input value={form.reviewer} onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))} placeholder="Your name" />
                   </Field>
+                  <Field label="Performance Grade (optional)">
+                    <select value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}>
+                      <option value="">— No grade —</option>
+                      {[...Array(10)].map((_, i) => {
+                        const val = 10 - i
+                        const color = val >= 8 ? '🟢' : val >= 5 ? '🟡' : '🔴'
+                        return <option key={val} value={val}>{color} {val} / 10</option>
+                      })}
+                    </select>
+                  </Field>
                   <Field label="Call Link" full>
                     <input type="url" value={form.callLink} onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))} placeholder="https://portal.example.com/calls/12345" />
                   </Field>
@@ -141,7 +151,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                 </div>
 
                 <div className="flex justify-end gap-2.5">
-                  <Btn variant="ghost" onClick={() => { setForm({ agentName:'',agentId:'',callDate:new Date().toISOString().split('T')[0],callLink:'',reviewer:'',notes:'' }); setScores({}) }}>Clear</Btn>
+                  <Btn variant="ghost" onClick={() => { setForm({ agentName:'',agentId:'',callDate:new Date().toISOString().split('T')[0],callLink:'',reviewer:'',notes:'',grade:'' }); setScores({}) }}>Clear</Btn>
                   <Btn onClick={handleSubmit}>Save Review ✓</Btn>
                 </div>
               </div>
