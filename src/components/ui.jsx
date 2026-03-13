@@ -6,8 +6,9 @@ export function Badge({ result }) {
     pass: 'bg-pass/10 text-pass border border-pass/25',
     fail: 'bg-fail/10 text-fail border border-fail/25',
     pending: 'bg-accent4/10 text-accent4 border border-accent4/25',
+    na: 'bg-txt3/10 text-txt3 border border-txt3/25',
   }
-  const labels = { pass: '✓ Pass', fail: '✗ Fail', pending: '⏳ Pending' }
+  const labels = { pass: '✓ Pass', fail: '✗ Fail', pending: '⏳ Pending', na: '— N/A' }
   return (
     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium font-mono ${styles[result] || styles.pending}`}>
       {labels[result] || result}
