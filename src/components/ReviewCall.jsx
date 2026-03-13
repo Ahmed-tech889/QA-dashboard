@@ -2,15 +2,22 @@ import { useState, useRef } from 'react'
 import { Btn, EmptyState, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
 
-function PFButton({ label, selected, onClick, isPass }) {
+// Supports: isPass=true (Pass), isPass=false (Fail), isNA=true (N/A)
+function PFButton({ label, selected, onClick, isPass, isNA }) {
+  let activeStyle = ''
+  if (selected) {
+    if (isNA) activeStyle = 'bg-txt3/15 text-txt2 border-txt3'
+    else if (isPass) activeStyle = 'bg-pass/15 text-pass border-pass'
+    else activeStyle = 'bg-fail/15 text-fail border-fail'
+  } else {
+    activeStyle = 'bg-surface3 text-txt3 border-border hover:text-txt'
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-3.5 py-1 rounded-lg text-xs font-semibold font-mono cursor-pointer border transition-all
-        ${selected && isPass ? 'bg-pass/15 text-pass border-pass' :
-          selected && !isPass ? 'bg-fail/15 text-fail border-fail' :
-          'bg-surface3 text-txt3 border-border hover:text-txt'}`}
+      className={`px-3.5 py-1 rounded-lg text-xs font-semibold font-mono cursor-pointer border transition-all ${activeStyle}`}
     >
       {label}
     </button>
@@ -35,10 +42,14 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     if (!form.agentName || !form.callLink || !form.reviewer) {
       emitToast('Agent name, call link, and reviewer are required', 'error'); return
     }
-    if (state.criteria.length > 0 && state.criteria.some((c) => !scores[c.id])) {
+    // Only require scoring for criteria that haven't been marked N/A
+    const unscoredCriteria = state.criteria.filter((c) => !scores[c.id])
+    if (state.criteria.length > 0 && unscoredCriteria.length > 0) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
-    const passed = state.criteria.length === 0 || state.criteria.every((c) => scores[c.id] === 'pass')
+    // A call passes if all non-N/A criteria are marked pass
+    const activeCriteria = state.criteria.filter((c) => scores[c.id] !== 'na')
+    const passed = activeCriteria.length === 0 || activeCriteria.every((c) => scores[c.id] === 'pass')
     addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
     setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
     setScores({})
@@ -130,7 +141,16 @@ export default function ReviewCall({ state, addReview, addReviews }) {
 
                 {/* Scoring */}
                 <div className="mb-5">
-                  <div className="font-syne font-bold text-sm mb-3.5">QA Criteria Scoring</div>
+                  <div className="flex items-center justify-between mb-3.5">
+                    <div className="font-syne font-bold text-sm">QA Criteria Scoring</div>
+                    {state.criteria.length > 0 && (
+                      <div className="flex items-center gap-3 font-mono text-[10px] text-txt3">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pass inline-block" /> Pass</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-fail inline-block" /> Fail</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-txt3 inline-block" /> N/A</span>
+                      </div>
+                    )}
+                  </div>
                   {state.criteria.length === 0
                     ? <div className="text-center py-6 text-txt3 text-sm">No criteria defined yet. Go to QA Criteria to add some.</div>
                     : <div className="flex flex-col gap-2.5">
@@ -143,6 +163,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                             <div className="flex gap-1.5">
                               <PFButton label="✓ Pass" isPass selected={scores[c.id] === 'pass'} onClick={() => setScore(c.id, 'pass')} />
                               <PFButton label="✗ Fail" isPass={false} selected={scores[c.id] === 'fail'} onClick={() => setScore(c.id, 'fail')} />
+                              <PFButton label="— N/A" isNA selected={scores[c.id] === 'na'} onClick={() => setScore(c.id, 'na')} />
                             </div>
                           </div>
                         ))}
