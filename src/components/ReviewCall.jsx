@@ -2,7 +2,6 @@ import { useState, useRef } from 'react'
 import { Btn, EmptyState, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
 
-// Supports: isPass=true (Pass), isPass=false (Fail), isNA=true (N/A)
 function PFButton({ label, selected, onClick, isPass, isNA }) {
   let activeStyle = ''
   if (selected) {
@@ -42,12 +41,10 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     if (!form.agentName || !form.callLink || !form.reviewer) {
       emitToast('Agent name, call link, and reviewer are required', 'error'); return
     }
-    // Only require scoring for criteria that haven't been marked N/A
     const unscoredCriteria = state.criteria.filter((c) => !scores[c.id])
     if (state.criteria.length > 0 && unscoredCriteria.length > 0) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
-    // A call passes if all non-N/A criteria are marked pass
     const activeCriteria = state.criteria.filter((c) => scores[c.id] !== 'na')
     const passed = activeCriteria.length === 0 || activeCriteria.every((c) => scores[c.id] === 'pass')
     addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
@@ -92,7 +89,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         <Panel>
           <PanelHeader title="🎧 Log a Call Review" />
           <div className="p-6">
-            {/* Tabs */}
             <div className="flex gap-1 mb-5">
               {['manual', 'csv'].map((t) => (
                 <button key={t} onClick={() => setTab(t)}
@@ -103,7 +99,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
               ))}
             </div>
 
-            {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
                 <div className="grid grid-cols-2 gap-4 mb-5">
@@ -139,7 +134,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   </Field>
                 </div>
 
-                {/* Scoring */}
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-3.5">
                     <div className="font-syne font-bold text-sm">QA Criteria Scoring</div>
@@ -178,7 +172,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
               </div>
             )}
 
-            {/* CSV Tab */}
             {tab === 'csv' && (
               <div>
                 <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-txt2 mb-4">
