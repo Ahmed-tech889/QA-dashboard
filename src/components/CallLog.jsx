@@ -28,6 +28,20 @@ function DetailModal({ review, criteria, onClose }) {
           <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Call Link</div>
           <a href={review.callLink} target="_blank" rel="noreferrer" className="text-accent text-sm hover:underline">{review.callLink}</a>
         </div>
+        {review.grade && (
+          <div>
+            <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Performance Grade</div>
+            <div className="flex items-center gap-2">
+              <span className="font-syne font-bold text-xl" style={{ color: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }}>
+                {review.grade}
+              </span>
+              <span className="text-txt3 text-sm font-mono">/ 10</span>
+              <div className="flex-1 h-1.5 bg-surface3 rounded-full overflow-hidden ml-1">
+                <div className="h-full rounded-full score-bar-fill" style={{ width: `${review.grade * 10}%`, background: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }} />
+              </div>
+            </div>
+          </div>
+        )}
         {review.notes && (
           <div className="col-span-2">
             <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Notes</div>
@@ -76,7 +90,6 @@ export default function CallLog({ state }) {
 
   return (
     <div className="p-8 animate-fadeIn">
-      {/* Filters */}
       <Panel className="mb-4">
         <div className="px-5 py-3.5 flex gap-3 items-center flex-wrap">
           <input
@@ -108,7 +121,7 @@ export default function CallLog({ state }) {
           : <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['Agent', 'Date', 'Reviewer', 'Result', 'Call Link'].map((h) => (
+                  {['Agent', 'Date', 'Reviewer', 'Grade', 'Result', 'Call Link'].map((h) => (
                     <th key={h} className="text-left font-mono text-[10px] tracking-widest uppercase text-txt3 px-4 py-2.5 border-b border-border bg-surface2">{h}</th>
                   ))}
                 </tr>
@@ -121,6 +134,12 @@ export default function CallLog({ state }) {
                     </td>
                     <td className="px-4 py-3 text-txt2 text-[13.5px]">{r.callDate}</td>
                     <td className="px-4 py-3 text-txt2 text-[13.5px]">{r.reviewer}</td>
+                    <td className="px-4 py-3">
+                      {r.grade
+                        ? <span className="font-mono font-bold text-sm" style={{ color: r.grade >= 8 ? '#00d4aa' : r.grade >= 5 ? '#ffa94d' : '#ff6b6b' }}>{r.grade}<span className="text-txt3 font-normal">/10</span></span>
+                        : <span className="text-txt3 font-mono text-xs">—</span>
+                      }
+                    </td>
                     <td className="px-4 py-3"><Badge result={r.result} /></td>
                     <td className="px-4 py-3">
                       <a href={r.callLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-accent text-xs hover:underline">Open ↗</a>
