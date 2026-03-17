@@ -61,6 +61,7 @@ export default function App() {
             state={store.state}
             addCriterion={store.addCriterion}
             deleteCriterion={store.deleteCriterion}
+            updateCriterionWeight={store.updateCriterionWeight}
           />
         )
       default:
@@ -73,7 +74,6 @@ export default function App() {
       <Sidebar activePage={page} onNavigate={setPage} />
 
       <main className="ml-[220px] min-h-screen flex flex-col">
-        {/* Topbar */}
         <div className="sticky top-0 z-50 px-8 py-[18px] bg-surface border-b border-border flex items-center justify-between">
           <h1 className="font-syne font-bold text-[18px]">{PAGE_TITLES[page]}</h1>
           <div className="flex items-center gap-2.5">
@@ -82,13 +82,10 @@ export default function App() {
           </div>
         </div>
 
-        {/* Page Content */}
         <div className="flex-1">
           {renderPage()}
         </div>
       </main>
-
-      // Qa dashboard first itieration
 
       <ToastContainer />
     </div>
