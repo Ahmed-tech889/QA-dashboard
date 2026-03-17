@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
-import { Btn, EmptyState, Field, Panel, PanelHeader } from './ui'
+import { Btn, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
+import { calcWeightedScore } from '../store/useStore'
 
 function PFButton({ label, selected, onClick, isPass, isNA }) {
   let activeStyle = ''
@@ -11,7 +12,6 @@ function PFButton({ label, selected, onClick, isPass, isNA }) {
   } else {
     activeStyle = 'bg-surface3 text-txt3 border-border hover:text-txt'
   }
-
   return (
     <button
       type="button"
@@ -20,6 +20,73 @@ function PFButton({ label, selected, onClick, isPass, isNA }) {
     >
       {label}
     </button>
+  )
+}
+
+function ScoreSummary({ scores, criteria }) {
+  const scored = criteria.filter((c) => scores[c.id])
+  const active = scored.filter((c) => scores[c.id] !== 'na')
+  const score = calcWeightedScore(scores, criteria)
+  const allScored = criteria.length > 0 && criteria.every((c) => scores[c.id])
+
+  if (criteria.length === 0) return null
+
+  const isPassing = score !== null && score >= 60
+  const color = score === null ? '#5a5a72' : isPassing ? '#00d4aa' : '#ff6b6b'
+  const bgColor = score === null ? 'bg-surface3/50' : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'
+
+  return (
+    <div className={`rounded-xl border p-4 mb-5 ${bgColor}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-syne font-bold text-sm">Score Summary</div>
+        <div className="flex items-center gap-2">
+          {score !== null && (
+            <span
+              className="font-syne font-extrabold text-2xl leading-none"
+              style={{ color }}
+            >
+              {score}%
+            </span>
+          )}
+          {score !== null && (
+            <span
+              className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              style={{
+                color,
+                borderColor: color,
+                background: isPassing ? 'rgba(0,212,170,0.1)' : 'rgba(255,107,107,0.1)',
+              }}
+            >
+              {isPassing ? '✓ PASS' : '✗ FAIL'}
+            </span>
+          )}
+          {score === null && (
+            <span className="font-mono text-[11px] text-txt3">Score will appear as you score criteria</span>
+          )}
+        </div>
+      </div>
+
+      {/* Score bar */}
+      <div className="h-2 bg-surface3 rounded-full overflow-hidden mb-2 relative">
+        {score !== null && (
+          <div
+            className="h-full rounded-full score-bar-fill"
+            style={{ width: `${score}%`, background: color }}
+          />
+        )}
+        {/* 60% threshold marker */}
+        <div
+          className="absolute top-0 bottom-0 w-px bg-txt3/60"
+          style={{ left: '60%' }}
+          title="Pass threshold: 60%"
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-[10px] font-mono text-txt3">
+        <span>{scored.length}/{criteria.length} scored{active.length !== scored.length ? ` (${scored.length - active.length} N/A)` : ''}</span>
+        <span>Pass threshold: 60%</span>
+      </div>
+    </div>
   )
 }
 
@@ -41,16 +108,16 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     if (!form.agentName || !form.callLink || !form.reviewer) {
       emitToast('Agent name, call link, and reviewer are required', 'error'); return
     }
-    const unscoredCriteria = state.criteria.filter((c) => !scores[c.id])
-    if (state.criteria.length > 0 && unscoredCriteria.length > 0) {
+    const unscored = state.criteria.filter((c) => !scores[c.id])
+    if (state.criteria.length > 0 && unscored.length > 0) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
-    const activeCriteria = state.criteria.filter((c) => scores[c.id] !== 'na')
-    const passed = activeCriteria.length === 0 || activeCriteria.every((c) => scores[c.id] === 'pass')
-    addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
+    addReview({ ...form, scores })
     setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
     setScores({})
-    emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
+    const score = calcWeightedScore(scores, state.criteria)
+    const passed = score === null ? true : score >= 60
+    emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'} (${score ?? '—'}%)`)
   }
 
   const handleCSV = (file) => {
@@ -89,6 +156,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         <Panel>
           <PanelHeader title="🎧 Log a Call Review" />
           <div className="p-6">
+            {/* Tabs */}
             <div className="flex gap-1 mb-5">
               {['manual', 'csv'].map((t) => (
                 <button key={t} onClick={() => setTab(t)}
@@ -99,6 +167,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
               ))}
             </div>
 
+            {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
                 <div className="grid grid-cols-2 gap-4 mb-5">
@@ -134,6 +203,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   </Field>
                 </div>
 
+                {/* Scoring */}
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-3.5">
                     <div className="font-syne font-bold text-sm">QA Criteria Scoring</div>
@@ -145,23 +215,33 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                       </div>
                     )}
                   </div>
+
                   {state.criteria.length === 0
                     ? <div className="text-center py-6 text-txt3 text-sm">No criteria defined yet. Go to QA Criteria to add some.</div>
-                    : <div className="flex flex-col gap-2.5">
-                        {state.criteria.map((c) => (
-                          <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-surface2 border border-border rounded-lg">
-                            <div>
-                              <div className="text-[13px] font-medium">{c.name}</div>
-                              {c.cat && <div className="font-mono text-[11px] text-txt3">{c.cat}</div>}
+                    : <>
+                        <div className="flex flex-col gap-2.5 mb-4">
+                          {state.criteria.map((c) => (
+                            <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-surface2 border border-border rounded-lg">
+                              <div>
+                                <div className="text-[13px] font-medium">{c.name}</div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {c.cat && <span className="font-mono text-[11px] text-txt3">{c.cat}</span>}
+                                  <span className="font-mono text-[10px] px-1.5 py-px rounded bg-surface3 border border-border text-txt3">
+                                    {c.weight ?? 100}%
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <PFButton label="✓ Pass" isPass selected={scores[c.id] === 'pass'} onClick={() => setScore(c.id, 'pass')} />
+                                <PFButton label="✗ Fail" isPass={false} selected={scores[c.id] === 'fail'} onClick={() => setScore(c.id, 'fail')} />
+                                <PFButton label="— N/A" isNA selected={scores[c.id] === 'na'} onClick={() => setScore(c.id, 'na')} />
+                              </div>
                             </div>
-                            <div className="flex gap-1.5">
-                              <PFButton label="✓ Pass" isPass selected={scores[c.id] === 'pass'} onClick={() => setScore(c.id, 'pass')} />
-                              <PFButton label="✗ Fail" isPass={false} selected={scores[c.id] === 'fail'} onClick={() => setScore(c.id, 'fail')} />
-                              <PFButton label="— N/A" isNA selected={scores[c.id] === 'na'} onClick={() => setScore(c.id, 'na')} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+
+                        <ScoreSummary scores={scores} criteria={state.criteria} />
+                      </>
                   }
                 </div>
 
@@ -172,6 +252,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
               </div>
             )}
 
+            {/* CSV Tab */}
             {tab === 'csv' && (
               <div>
                 <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-txt2 mb-4">
