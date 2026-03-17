@@ -22,6 +22,17 @@ function saveState(state) {
   } catch {}
 }
 
+// Calculate weighted score for a review given criteria definitions
+export function calcWeightedScore(scores, criteria) {
+  const active = criteria.filter((c) => scores[c.id] && scores[c.id] !== 'na')
+  if (active.length === 0) return null
+  const totalWeight = active.reduce((sum, c) => sum + (c.weight ?? 100), 0)
+  const earnedWeight = active
+    .filter((c) => scores[c.id] === 'pass')
+    .reduce((sum, c) => sum + (c.weight ?? 100), 0)
+  return totalWeight === 0 ? 0 : Math.round((earnedWeight / totalWeight) * 100)
+}
+
 export function useStore() {
   const [state, setState] = useState(loadState)
 
@@ -34,10 +45,10 @@ export function useStore() {
   }, [])
 
   const addCriterion = useCallback(
-    (name, cat) => {
+    (name, cat, weight) => {
       update((s) => ({
         ...s,
-        criteria: [...s.criteria, { id: s.nextId, name, cat }],
+        criteria: [...s.criteria, { id: s.nextId, name, cat, weight: weight ?? 100 }],
         nextId: s.nextId + 1,
       }))
     },
@@ -51,13 +62,29 @@ export function useStore() {
     [update]
   )
 
-  const addReview = useCallback(
-    (review) => {
+  const updateCriterionWeight = useCallback(
+    (id, weight) => {
       update((s) => ({
         ...s,
-        reviews: [{ ...review, id: s.nextId, reviewedAt: new Date().toISOString() }, ...s.reviews],
-        nextId: s.nextId + 1,
+        criteria: s.criteria.map((c) => (c.id === id ? { ...c, weight } : c)),
       }))
+    },
+    [update]
+  )
+
+  const addReview = useCallback(
+    (review) => {
+      update((s) => {
+        const score = calcWeightedScore(review.scores, s.criteria)
+        const result = score === null
+          ? (review.result ?? 'pending')
+          : score >= 60 ? 'pass' : 'fail'
+        return {
+          ...s,
+          reviews: [{ ...review, id: s.nextId, reviewedAt: new Date().toISOString(), score, result }, ...s.reviews],
+          nextId: s.nextId + 1,
+        }
+      })
     },
     [update]
   )
@@ -124,6 +151,7 @@ export function useStore() {
     state,
     addCriterion,
     deleteCriterion,
+    updateCriterionWeight,
     addReview,
     addReviews,
     getAgentStats,
