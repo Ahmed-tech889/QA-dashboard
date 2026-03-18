@@ -45,7 +45,7 @@ export default function App() {
       case 'calls':
         return <CallLog state={store.state} />
       case 'agents':
-        return <Agents getAgentStats={store.getAgentStats} />
+        return <Agents getAgentStats={store.getAgentStats} state={store.state} />
       case 'reports':
         return (
           <Reports
