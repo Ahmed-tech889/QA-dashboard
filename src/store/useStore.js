@@ -22,13 +22,14 @@ function saveState(state) {
   } catch {}
 }
 
-// Calculate weighted score for a review given criteria definitions
+// N/A counts the same as pass — only explicit 'fail' brings the score down
 export function calcWeightedScore(scores, criteria) {
-  const active = criteria.filter((c) => scores[c.id] && scores[c.id] !== 'na')
+  const active = criteria.filter((c) => scores[c.id] && scores[c.id] !== undefined)
   if (active.length === 0) return null
   const totalWeight = active.reduce((sum, c) => sum + (c.weight ?? 100), 0)
+  // pass + na both earn full weight; fail earns 0
   const earnedWeight = active
-    .filter((c) => scores[c.id] === 'pass')
+    .filter((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
     .reduce((sum, c) => sum + (c.weight ?? 100), 0)
   return totalWeight === 0 ? 0 : Math.round((earnedWeight / totalWeight) * 100)
 }
