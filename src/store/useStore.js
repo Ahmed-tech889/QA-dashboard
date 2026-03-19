@@ -27,7 +27,6 @@ export function calcWeightedScore(scores, criteria) {
   const active = criteria.filter((c) => scores[c.id] && scores[c.id] !== undefined)
   if (active.length === 0) return null
   const totalWeight = active.reduce((sum, c) => sum + (c.weight ?? 100), 0)
-  // pass + na both earn full weight; fail earns 0
   const earnedWeight = active
     .filter((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
     .reduce((sum, c) => sum + (c.weight ?? 100), 0)
@@ -82,7 +81,10 @@ export function useStore() {
           : score >= 60 ? 'pass' : 'fail'
         return {
           ...s,
-          reviews: [{ ...review, id: s.nextId, reviewedAt: new Date().toISOString(), score, result }, ...s.reviews],
+          reviews: [
+            { ...review, id: s.nextId, reviewedAt: new Date().toISOString(), score, result },
+            ...s.reviews,
+          ],
           nextId: s.nextId + 1,
         }
       })
@@ -94,7 +96,11 @@ export function useStore() {
     (newReviews) => {
       update((s) => {
         let id = s.nextId
-        const mapped = newReviews.map((r) => ({ ...r, id: id++, reviewedAt: new Date().toISOString() }))
+        const mapped = newReviews.map((r) => ({
+          ...r,
+          id: id++,
+          reviewedAt: new Date().toISOString(),
+        }))
         return { ...s, reviews: [...mapped, ...s.reviews], nextId: id }
       })
     },
@@ -103,16 +109,40 @@ export function useStore() {
 
   const getAgentStats = useCallback(() => {
     const stats = {}
+
     state.reviews
       .filter((r) => r.result !== 'pending')
       .forEach((r) => {
-        if (!stats[r.agentName])
-          stats[r.agentName] = { name: r.agentName, id: r.agentId, total: 0, pass: 0, fail: 0 }
-        stats[r.agentName].total++
-        if (r.result === 'pass') stats[r.agentName].pass++
-        else stats[r.agentName].fail++
+        if (!stats[r.agentName]) {
+          stats[r.agentName] = {
+            name: r.agentName,
+            id: r.agentId,
+            total: 0,
+            pass: 0,
+            fail: 0,
+            scoreSum: 0,
+            scoredCount: 0,
+          }
+        }
+        const s = stats[r.agentName]
+        s.total++
+        if (r.result === 'pass') s.pass++
+        else s.fail++
+        // accumulate individual call scores for cumulative average
+        if (typeof r.score === 'number') {
+          s.scoreSum += r.score
+          s.scoredCount++
+        }
       })
-    Object.values(stats).forEach((s) => (s.passRate = s.total ? Math.round((s.pass / s.total) * 100) : 0))
+
+    Object.values(stats).forEach((s) => {
+      // if we have weighted scores, average them cumulatively
+      // otherwise fall back to pass/total ratio
+      s.passRate = s.scoredCount > 0
+        ? Math.round(s.scoreSum / s.scoredCount)
+        : s.total > 0 ? Math.round((s.pass / s.total) * 100) : 0
+    })
+
     return stats
   }, [state.reviews])
 
