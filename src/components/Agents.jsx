@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { EmptyState, Modal } from './ui'
 
 const GRADIENTS = [
@@ -38,162 +38,139 @@ function getTip(criterionName) {
   return IMPROVEMENT_TIPS.default
 }
 
-function StatPill({ label, value, color }) {
+// Compute quality score from a set of reviews (criteria pass/fail attribute ratio)
+function computeQualityScore(reviews) {
+  let pass = 0, fail = 0
+  reviews.forEach((r) => {
+    Object.values(r.scores || {}).forEach((val) => {
+      if (val === 'pass' || val === 'na') pass++
+      else if (val === 'fail') fail++
+    })
+  })
+  const total = pass + fail
+  return total > 0 ? Math.round((pass / total) * 100) : null
+}
+
+// Compute cumulative pass rate from a set of reviews
+function computePassRate(reviews) {
+  const scored = reviews.filter((r) => r.result !== 'pending')
+  if (scored.length === 0) return null
+  const withScore = scored.filter((r) => typeof r.score === 'number')
+  if (withScore.length > 0) {
+    return Math.round(withScore.reduce((s, r) => s + r.score, 0) / withScore.length)
+  }
+  const passes = scored.filter((r) => r.result === 'pass').length
+  return Math.round((passes / scored.length) * 100)
+}
+
+function StatPill({ label, value, color, sub }) {
   return (
-    <div className="flex flex-col items-center px-5 py-3.5 bg-surface2 border border-border rounded-xl">
-      <span className="font-syne font-extrabold text-[26px] leading-none mb-1" style={color ? { color } : {}}>
-        {value}
+    <div className="flex flex-col items-center px-4 py-3.5 bg-surface2 border border-border rounded-xl">
+      <span
+        className="font-syne font-extrabold text-[26px] leading-none mb-1"
+        style={color ? { color } : {}}
+      >
+        {value ?? '—'}
       </span>
-      <span className="font-mono text-[10px] tracking-widest uppercase text-txt3">{label}</span>
+      <span className="font-mono text-[10px] tracking-widest uppercase text-txt3 text-center">{label}</span>
+      {sub && <span className="font-mono text-[9px] text-txt3 mt-0.5">{sub}</span>}
     </div>
   )
 }
 
-function exportScorecardPDF({ agent, rangeDays, agentReviews, scored, passes, fails, passRate, mistakes, strengths }) {
+function exportAgentPDF({ agent, agentReviews, scored, passes, fails, passRate, qualityScore, mistakes, strengths, rangeDays }) {
   const rangeLabel = DATE_RANGES.find((r) => r.days === rangeDays)?.label ?? 'All time'
   const exportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
   const mistakesHTML = mistakes.length === 0
-    ? `<p class="no-data">No failures recorded in this period.</p>`
+    ? `<div style="color:#059669;font-weight:600;font-size:12px;">🎉 No failures recorded in this period.</div>`
     : mistakes.map((m, i) => `
-        <div class="mistake-row">
-          <div class="mistake-header">
-            <div class="mistake-left">
-              <span class="rank">${i + 1}</span>
-              <div>
-                <span class="mistake-name">${m.name}</span>
-                ${m.cat ? `<span class="mistake-cat">${m.cat}</span>` : ''}
-              </div>
-            </div>
-            <div class="mistake-right">
-              <span class="mistake-count">${m.fail}/${m.total}</span>
-              <span class="mistake-pct" style="color:${m.failRate > 50 ? '#e05252' : '#d97706'}">${m.failRate}%</span>
-            </div>
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#374151;margin-bottom:3px">
+            <span>${i + 1}. ${m.name}${m.cat ? ` <span style="color:#9ca3af">(${m.cat})</span>` : ''}</span>
+            <span style="font-family:'DM Mono',monospace;color:${m.failRate > 50 ? '#dc2626' : '#d97706'}">${m.fail}/${m.total} — ${m.failRate}%</span>
           </div>
-          <div class="bar-track"><div class="bar-fill" style="width:${m.failRate}%;background:${m.failRate > 50 ? '#e05252' : '#d97706'}"></div></div>
+          <div style="height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden">
+            <div style="height:100%;border-radius:99px;width:${m.failRate}%;background:${m.failRate > 50 ? '#dc2626' : '#f59e0b'}"></div>
+          </div>
         </div>`).join('')
 
   const tipsHTML = mistakes.slice(0, 4).map((m) => `
-    <div class="tip-row">
-      <span class="tip-arrow">→</span>
-      <div>
-        <div class="tip-name">${m.name}</div>
-        <div class="tip-desc">${getTip(m.name)}</div>
-      </div>
+    <div style="display:flex;gap:10px;padding:8px 12px;border:1px solid #dbeafe;border-radius:8px;background:#eff6ff;margin-bottom:6px;font-size:11px;color:#1d4ed8;line-height:1.5">
+      <span style="flex-shrink:0;font-weight:700">→</span>
+      <div><strong>${m.name}:</strong> ${getTip(m.name)}</div>
     </div>`).join('')
 
   const strengthsHTML = strengths.length === 0 ? '' : `
-    <div class="section">
-      <div class="section-title">✅ Strengths</div>
-      <div class="tags">${strengths.map((s) => `<span class="tag">${s.name}</span>`).join('')}</div>
-    </div>`
+    <div style="font-size:13px;font-weight:700;color:#111;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6">✅ Strengths</div>
+    <div>${strengths.map((s) => `<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;font-size:10px;font-family:'DM Mono',monospace;margin:2px">${s.name}</span>`).join('')}</div>`
+
+  const qsColor  = qualityScore === null ? '#9ca3af' : qualityScore >= 60 ? '#059669' : '#dc2626'
+  const prColor  = passRate     === null ? '#9ca3af' : passRate     >= 60 ? '#059669' : '#dc2626'
 
   const html = `<!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8"/>
-<title>Scorecard — ${agent.name}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; padding: 40px; }
-  .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb; margin-bottom: 24px; }
-  .header-left { display: flex; align-items: center; gap: 16px; }
-  .avatar { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #6c63ff, #a78bfa); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #fff; }
-  .agent-name { font-size: 22px; font-weight: 800; color: #111; }
-  .agent-meta { font-size: 11px; color: #888; margin-top: 2px; font-family: monospace; }
-  .header-right { text-align: right; }
-  .big-rate { font-size: 36px; font-weight: 900; line-height: 1; }
-  .big-rate-label { font-size: 10px; color: #888; font-family: monospace; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
-  .meta-row { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
-  .meta-chip { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-family: monospace; color: #555; }
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-  .stat-box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; text-align: center; }
-  .stat-val { font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-  .stat-lbl { font-size: 10px; color: #888; font-family: monospace; text-transform: uppercase; letter-spacing: 0.8px; }
-  .score-bar-wrap { margin-bottom: 24px; }
-  .score-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-bottom: 6px; font-family: monospace; }
-  .bar-track { height: 8px; background: #f3f4f6; border-radius: 99px; overflow: hidden; position: relative; }
-  .bar-fill { height: 100%; border-radius: 99px; }
-  .threshold-line { position: absolute; top: 0; bottom: 0; left: 60%; width: 1.5px; background: #9ca3af; }
-  .section { margin-bottom: 24px; }
-  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #111; }
-  .mistake-row { margin-bottom: 10px; }
-  .mistake-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-  .mistake-left { display: flex; align-items: center; gap: 8px; }
-  .rank { width: 20px; height: 20px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 10px; font-family: monospace; color: #888; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .mistake-name { font-weight: 600; font-size: 13px; }
-  .mistake-cat { font-size: 10px; color: #888; font-family: monospace; margin-left: 8px; }
-  .mistake-right { display: flex; gap: 10px; align-items: center; font-family: monospace; font-size: 12px; }
-  .mistake-count { color: #888; }
-  .mistake-pct { font-weight: 700; }
-  .tip-row { display: flex; gap: 10px; padding: 10px 14px; background: #f5f3ff; border: 1px solid #e0d9ff; border-radius: 8px; margin-bottom: 8px; }
-  .tip-arrow { color: #6c63ff; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-  .tip-name { font-weight: 600; font-size: 12px; margin-bottom: 2px; }
-  .tip-desc { font-size: 12px; color: #555; line-height: 1.5; }
-  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
-  .tag { padding: 4px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 99px; font-size: 11px; font-family: monospace; color: #065f46; }
-  .no-data { color: #888; font-size: 13px; padding: 12px 0; }
-  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 10px; color: #aaa; font-family: monospace; }
-  @media print { body { padding: 24px; } }
-</style>
+  <meta charset="utf-8"/>
+  <title>Agent Scorecard — ${agent.name}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#fff;color:#111;font-family:'DM Sans','Helvetica Neue',Arial,sans-serif;font-size:12px;padding:40px;max-width:800px;margin:0 auto}
+  </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      <div class="avatar">${agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}</div>
-      <div>
-        <div class="agent-name">${agent.name}</div>
-        <div class="agent-meta">${agent.id || 'No ID'} · Agent Scorecard</div>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #e5e7eb;padding-bottom:16px;margin-bottom:24px">
+    <div>
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#111;letter-spacing:-0.4px">${agent.name}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px;font-family:'DM Mono',monospace">${agent.id || 'No ID'} · Agent Scorecard · ${rangeLabel}</div>
+    </div>
+    <div style="text-align:right;display:flex;gap:20px;align-items:flex-start">
+      <div style="text-align:center">
+        <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:${qsColor};line-height:1">${qualityScore !== null ? qualityScore + '%' : '—'}</div>
+        <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Quality Score</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:${prColor};line-height:1">${passRate !== null ? passRate + '%' : '—'}</div>
+        <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Pass Rate</div>
       </div>
     </div>
-    <div class="header-right">
-      <div class="big-rate" style="color:${passRate !== null ? (passRate >= 60 ? '#059669' : '#dc2626') : '#888'}">${passRate !== null ? passRate + '%' : '—'}</div>
-      <div class="big-rate-label">Cumulative Pass Rate</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+    ${[['Total Calls', agentReviews.length, '#111'], ['Scored', scored.length, '#111'], ['Passed', passes, '#059669'], ['Failed', fails, '#dc2626']].map(([l, v, c]) => `
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#f9fafb">
+      <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.2px;color:#9ca3af;margin-bottom:4px">${l}</div>
+      <div style="font-size:24px;font-weight:800;line-height:1;color:${c}">${v}</div>
+    </div>`).join('')}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb">
+      <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.2px;color:#9ca3af;margin-bottom:6px">Quality Score (criteria-level)</div>
+      <div style="height:7px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-bottom:4px">
+        <div style="height:100%;border-radius:99px;width:${qualityScore ?? 0}%;background:${qsColor}"></div>
+      </div>
+      <div style="font-size:10px;color:${qsColor};font-family:'DM Mono',monospace;font-weight:700">${qualityScore !== null ? qualityScore + '%' : '—'} · ${qualityScore !== null && qualityScore >= 60 ? 'Passing' : 'Below threshold'}</div>
+    </div>
+    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb">
+      <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.2px;color:#9ca3af;margin-bottom:6px">Cumulative Pass Rate (call-level)</div>
+      <div style="height:7px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-bottom:4px">
+        <div style="height:100%;border-radius:99px;width:${passRate ?? 0}%;background:${prColor}"></div>
+      </div>
+      <div style="font-size:10px;color:${prColor};font-family:'DM Mono',monospace;font-weight:700">${passRate !== null ? passRate + '%' : '—'} · ${passRate !== null && passRate >= 60 ? 'Passing' : 'Below threshold'}</div>
     </div>
   </div>
 
-  <div class="meta-row">
-    <span class="meta-chip">📅 ${rangeLabel}</span>
-    <span class="meta-chip">🗓 Exported: ${exportDate}</span>
-    ${passRate !== null ? `<span class="meta-chip" style="color:${passRate >= 60 ? '#059669' : '#dc2626'};border-color:${passRate >= 60 ? '#a7f3d0' : '#fca5a5'}">${passRate >= 60 ? '✓ PASSING' : '✗ BELOW THRESHOLD'}</span>` : ''}
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-box"><div class="stat-val">${agentReviews.length}</div><div class="stat-lbl">Total Calls</div></div>
-    <div class="stat-box"><div class="stat-val">${scored.length}</div><div class="stat-lbl">Scored</div></div>
-    <div class="stat-box"><div class="stat-val" style="color:#059669">${passes}</div><div class="stat-lbl">Passed</div></div>
-    <div class="stat-box"><div class="stat-val" style="color:#dc2626">${fails}</div><div class="stat-lbl">Failed</div></div>
-  </div>
-
-  ${passRate !== null ? `
-  <div class="score-bar-wrap">
-    <div class="score-bar-labels">
-      <span>Overall Score</span>
-      <span style="color:${passRate >= 60 ? '#059669' : '#dc2626'};font-weight:700">${passRate}% — ${passRate >= 60 ? '✓ Passing' : '✗ Below threshold'}</span>
-    </div>
-    <div class="bar-track">
-      <div class="bar-fill" style="width:${passRate}%;background:${passRate >= 60 ? '#059669' : '#dc2626'}"></div>
-      <div class="threshold-line"></div>
-    </div>
-    <div style="text-align:right;font-size:10px;color:#aaa;font-family:monospace;margin-top:4px">Pass threshold: 60%</div>
-  </div>` : ''}
-
-  <div class="section">
-    <div class="section-title">⚠️ Most Common Mistakes</div>
-    ${mistakesHTML}
-  </div>
-
-  ${mistakes.length > 0 ? `
-  <div class="section">
-    <div class="section-title">💡 Improvement Opportunities</div>
-    ${tipsHTML}
-  </div>` : ''}
-
+  <div style="font-size:13px;font-weight:700;color:#111;margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6">⚠️ Most Common Mistakes</div>
+  ${mistakesHTML}
+  ${mistakes.length > 0 ? `<div style="font-size:13px;font-weight:700;color:#111;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6">💡 Improvement Opportunities</div>${tipsHTML}` : ''}
   ${strengthsHTML}
 
-  <div class="footer">
-    <span>QA Center · Agent Scorecard</span>
-    <span>${agent.name} · ${rangeLabel} · ${exportDate}</span>
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;font-family:'DM Mono',monospace;display:flex;justify-content:space-between">
+    <span>QA Center — Agent Scorecard</span>
+    <span>Generated: ${exportDate} · Period: ${rangeLabel}</span>
   </div>
 </body>
 </html>`
@@ -220,10 +197,11 @@ function ScorecardModal({ agent, state, onClose }) {
     })
   }, [agent, state.reviews, rangeDays])
 
-  const scored   = agentReviews.filter((r) => r.result !== 'pending')
-  const passes   = scored.filter((r) => r.result === 'pass').length
-  const fails    = scored.filter((r) => r.result === 'fail').length
-  const passRate = scored.length ? Math.round((passes / scored.length) * 100) : null
+  const scored       = agentReviews.filter((r) => r.result !== 'pending')
+  const passes       = scored.filter((r) => r.result === 'pass').length
+  const fails        = scored.filter((r) => r.result === 'fail').length
+  const passRate     = computePassRate(agentReviews)
+  const qualityScore = computeQualityScore(agentReviews)
 
   const mistakeMap = useMemo(() => {
     const map = {}
@@ -244,19 +222,22 @@ function ScorecardModal({ agent, state, onClose }) {
   const mistakes  = mistakeMap.filter((m) => m.failRate > 0)
   const strengths = mistakeMap.filter((m) => m.failRate === 0)
 
-  const initials      = agent ? agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) : ''
-  const gradientIndex = agent ? [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length : 0
+  const initials = agent
+    ? agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+    : ''
+  const gradientIndex = agent
+    ? [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
+    : 0
 
   if (!agent) return null
 
-  const handleExportPDF = () => {
-    exportScorecardPDF({ agent, rangeDays, agentReviews, scored, passes, fails, passRate, mistakes, strengths })
-  }
+  const handleExport = () =>
+    exportAgentPDF({ agent, agentReviews, scored, passes, fails, passRate, qualityScore, mistakes, strengths, rangeDays })
 
   return (
     <Modal open onClose={onClose} title="">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-5 -mt-2">
+      <div className="flex items-center gap-4 mb-6 -mt-2">
         <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[gradientIndex]} grid place-items-center font-bold text-lg text-white shrink-0`}>
           {initials}
         </div>
@@ -264,42 +245,56 @@ function ScorecardModal({ agent, state, onClose }) {
           <div className="font-syne font-extrabold text-[20px]">{agent.name}</div>
           <div className="font-mono text-[11px] text-txt3">{agent.id || 'No ID'} · Agent Scorecard</div>
         </div>
-        <div className="flex items-center gap-2">
-          {passRate !== null && (
-            <div className="text-right mr-2">
-              <div className="font-syne font-extrabold text-[30px] leading-none" style={{ color: passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>
-                {passRate}%
-              </div>
-              <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest">Pass Rate</div>
+        {/* Two metrics in header */}
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="text-center">
+            <div
+              className="font-syne font-extrabold text-[28px] leading-none"
+              style={{ color: qualityScore === null ? '#5a5a72' : qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }}
+            >
+              {qualityScore !== null ? `${qualityScore}%` : '—'}
             </div>
-          )}
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface2 border border-border text-txt2 hover:text-txt hover:border-accent/40 cursor-pointer transition-all text-xs font-medium"
-          >
-            ⬇ Export PDF
-          </button>
+            <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Quality Score</div>
+          </div>
+          <div className="w-px h-10 bg-border" />
+          <div className="text-center">
+            <div
+              className="font-syne font-extrabold text-[28px] leading-none"
+              style={{ color: passRate === null ? '#5a5a72' : passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}
+            >
+              {passRate !== null ? `${passRate}%` : '—'}
+            </div>
+            <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Pass Rate</div>
+          </div>
         </div>
       </div>
 
-      {/* Date Range Filter */}
-      <div className="flex gap-1.5 flex-wrap mb-5">
-        {DATE_RANGES.map((r) => (
-          <button
-            key={r.label}
-            onClick={() => setRangeDays(r.days)}
-            className={`px-3 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all
-              ${rangeDays === r.days
-                ? 'bg-accent text-white border-accent'
-                : 'bg-surface2 text-txt3 border-border hover:text-txt'}`}
-          >
-            {r.label}
-          </button>
-        ))}
+      {/* Date Range + Export */}
+      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
+          {DATE_RANGES.map((r) => (
+            <button
+              key={r.label}
+              onClick={() => setRangeDays(r.days)}
+              className={`px-3 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all
+                ${rangeDays === r.days
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-surface2 text-txt3 border-border hover:text-txt'}`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40 shrink-0"
+        >
+          <span>⬇</span> Export PDF
+        </button>
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-5">
         <StatPill label="Total Calls" value={agentReviews.length} />
         <StatPill label="Scored"      value={scored.length} />
         <StatPill label="Passed"      value={passes} color="#00d4aa" />
@@ -310,24 +305,50 @@ function ScorecardModal({ agent, state, onClose }) {
         <div className="text-center py-8 text-txt3 text-sm">No reviews found for this period.</div>
       ) : (
         <>
-          {/* Pass Rate Bar */}
-          {passRate !== null && (
-            <div className="mb-6">
-              <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-txt3 font-mono uppercase tracking-widest text-[10px]">Overall Score</span>
-                <span className="font-mono font-bold" style={{ color: passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>
-                  {passRate}% — {passRate >= 60 ? '✓ Passing' : '✗ Below threshold'}
+          {/* Dual metric bars */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* Quality Score bar */}
+            <div className="px-4 py-3.5 bg-surface2 border border-border rounded-xl">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-txt3">Quality Score</span>
+                <span className="font-mono text-xs font-bold"
+                  style={{ color: qualityScore === null ? '#5a5a72' : qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+                  {qualityScore !== null ? `${qualityScore}%` : '—'}
                 </span>
               </div>
-              <div className="h-2 bg-surface3 rounded-full overflow-hidden relative">
-                <div className="h-full rounded-full score-bar-fill" style={{ width: `${passRate}%`, background: passRate >= 60 ? '#00d4aa' : '#ff6b6b' }} />
-                <div className="absolute top-0 bottom-0 w-px bg-txt3/50" style={{ left: '60%' }} />
+              <div className="h-1.5 bg-surface3 rounded-full overflow-hidden relative mb-1.5">
+                {qualityScore !== null && (
+                  <div className="h-full rounded-full score-bar-fill"
+                    style={{ width: `${qualityScore}%`, background: qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }} />
+                )}
+                <div className="absolute top-0 bottom-0 w-px bg-txt3/40" style={{ left: '60%' }} />
               </div>
-              <div className="flex justify-end mt-1">
-                <span className="font-mono text-[10px] text-txt3">Pass threshold: 60%</span>
+              <div className="font-mono text-[9px] text-txt3">
+                Passed + N/A criteria attributes / all scored attributes
               </div>
             </div>
-          )}
+
+            {/* Pass Rate bar */}
+            <div className="px-4 py-3.5 bg-surface2 border border-border rounded-xl">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-txt3">Pass Rate</span>
+                <span className="font-mono text-xs font-bold"
+                  style={{ color: passRate === null ? '#5a5a72' : passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+                  {passRate !== null ? `${passRate}%` : '—'}
+                </span>
+              </div>
+              <div className="h-1.5 bg-surface3 rounded-full overflow-hidden relative mb-1.5">
+                {passRate !== null && (
+                  <div className="h-full rounded-full score-bar-fill"
+                    style={{ width: `${passRate}%`, background: passRate >= 60 ? '#00d4aa' : '#ff6b6b' }} />
+                )}
+                <div className="absolute top-0 bottom-0 w-px bg-txt3/40" style={{ left: '60%' }} />
+              </div>
+              <div className="font-mono text-[9px] text-txt3">
+                Cumulative average of per-call weighted scores
+              </div>
+            </div>
+          </div>
 
           {/* Most Common Mistakes */}
           <div className="mb-5">
@@ -345,7 +366,9 @@ function ScorecardModal({ agent, state, onClose }) {
                   <div key={m.name} className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-md bg-surface3 border border-border grid place-items-center font-mono text-[9px] text-txt3 shrink-0">{i + 1}</span>
+                        <span className="w-5 h-5 rounded-md bg-surface3 border border-border grid place-items-center font-mono text-[9px] text-txt3 shrink-0">
+                          {i + 1}
+                        </span>
                         <div>
                           <span className="text-[13px] font-medium">{m.name}</span>
                           {m.cat && <span className="ml-2 font-mono text-[10px] text-txt3">{m.cat}</span>}
@@ -353,11 +376,15 @@ function ScorecardModal({ agent, state, onClose }) {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="font-mono text-[11px] text-txt3">{m.fail}/{m.total}</span>
-                        <span className="font-mono text-xs font-bold min-w-[40px] text-right" style={{ color: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}>{m.failRate}%</span>
+                        <span className="font-mono text-xs font-bold min-w-[40px] text-right"
+                          style={{ color: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}>
+                          {m.failRate}%
+                        </span>
                       </div>
                     </div>
                     <div className="h-1.5 bg-surface3 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full score-bar-fill" style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }} />
+                      <div className="h-full rounded-full score-bar-fill"
+                        style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }} />
                     </div>
                   </div>
                 ))}
@@ -365,7 +392,6 @@ function ScorecardModal({ agent, state, onClose }) {
             )}
           </div>
 
-          {/* Improvement Opportunities */}
           {mistakes.length > 0 && (
             <div className="mb-5">
               <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
@@ -383,13 +409,14 @@ function ScorecardModal({ agent, state, onClose }) {
             </div>
           )}
 
-          {/* Strengths */}
           {strengths.length > 0 && (
             <div>
               <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
               <div className="flex flex-wrap gap-2">
                 {strengths.map((s) => (
-                  <span key={s.name} className="px-3 py-1 rounded-full bg-pass/10 border border-pass/20 text-pass font-mono text-[11px]">{s.name}</span>
+                  <span key={s.name} className="px-3 py-1 rounded-full bg-pass/10 border border-pass/20 text-pass font-mono text-[11px]">
+                    {s.name}
+                  </span>
                 ))}
               </div>
             </div>
@@ -401,11 +428,14 @@ function ScorecardModal({ agent, state, onClose }) {
 }
 
 function AgentCard({ agent, index, onClick }) {
-  const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-  const isGood   = agent.passRate >= 60
+  const isGoodQS = (agent.qualityScore ?? 0) >= 60
+  const initials  = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div onClick={onClick} className="bg-surface border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-2xl transition-all duration-200">
+    <div
+      onClick={onClick}
+      className="bg-surface border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-2xl transition-all duration-200"
+    >
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} grid place-items-center font-bold text-sm text-white shrink-0`}>
           {initials}
@@ -416,14 +446,42 @@ function AgentCard({ agent, index, onClick }) {
         </div>
         <span className="font-mono text-[10px] text-txt3 border border-border rounded px-1.5 py-0.5 bg-surface2">View →</span>
       </div>
+
       <div className="flex flex-col gap-2">
+        {/* Quality Score — primary metric on card */}
         <div className="flex justify-between items-center text-xs">
+          <span className="text-txt3">Quality Score</span>
+          <span className="font-mono font-medium" style={{ color: isGoodQS ? '#00d4aa' : '#ff6b6b' }}>
+            {agent.qualityScore !== null ? `${agent.qualityScore}%` : '—'}
+          </span>
+        </div>
+        <div className="h-1 bg-surface3 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full score-bar-fill"
+            style={{
+              width: `${agent.qualityScore ?? 0}%`,
+              background: isGoodQS ? '#00d4aa' : '#ff6b6b',
+            }}
+          />
+        </div>
+
+        {/* Pass Rate — secondary metric */}
+        <div className="flex justify-between items-center text-xs mt-1">
           <span className="text-txt3">Pass Rate</span>
-          <span className="font-mono font-medium" style={{ color: isGood ? '#00d4aa' : '#ff6b6b' }}>{agent.passRate}%</span>
+          <span className="font-mono font-medium" style={{ color: (agent.passRate ?? 0) >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+            {agent.passRate}%
+          </span>
         </div>
         <div className="h-1 bg-surface3 rounded-full overflow-hidden mb-1">
-          <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.passRate}%`, background: isGood ? '#00d4aa' : '#ff6b6b' }} />
+          <div
+            className="h-full rounded-full score-bar-fill"
+            style={{
+              width: `${agent.passRate}%`,
+              background: (agent.passRate ?? 0) >= 60 ? '#00d4aa' : '#ff6b6b',
+            }}
+          />
         </div>
+
         <div className="flex justify-between text-xs">
           <span className="text-txt3">Total Reviews</span>
           <span className="font-mono">{agent.total}</span>
@@ -443,7 +501,7 @@ function AgentCard({ agent, index, onClick }) {
 
 export default function Agents({ getAgentStats, state }) {
   const [selectedAgent, setSelectedAgent] = useState(null)
-  const agents = Object.values(getAgentStats()).sort((a, b) => b.passRate - a.passRate)
+  const agents = Object.values(getAgentStats()).sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0))
 
   if (agents.length === 0) {
     return (
@@ -461,7 +519,11 @@ export default function Agents({ getAgentStats, state }) {
         ))}
       </div>
       {selectedAgent && (
-        <ScorecardModal agent={selectedAgent} state={state} onClose={() => setSelectedAgent(null)} />
+        <ScorecardModal
+          agent={selectedAgent}
+          state={state}
+          onClose={() => setSelectedAgent(null)}
+        />
       )}
     </div>
   )
