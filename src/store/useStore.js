@@ -22,7 +22,7 @@ function saveState(state) {
   } catch {}
 }
 
-// N/A counts the same as pass — only explicit 'fail' brings the score down
+// N/A counts the same as pass — only explicit 'fail' deducts
 export function calcWeightedScore(scores, criteria) {
   const active = criteria.filter((c) => scores[c.id] && scores[c.id] !== undefined)
   if (active.length === 0) return null
@@ -96,11 +96,7 @@ export function useStore() {
     (newReviews) => {
       update((s) => {
         let id = s.nextId
-        const mapped = newReviews.map((r) => ({
-          ...r,
-          id: id++,
-          reviewedAt: new Date().toISOString(),
-        }))
+        const mapped = newReviews.map((r) => ({ ...r, id: id++, reviewedAt: new Date().toISOString() }))
         return { ...s, reviews: [...mapped, ...s.reviews], nextId: id }
       })
     },
@@ -122,25 +118,40 @@ export function useStore() {
             fail: 0,
             scoreSum: 0,
             scoredCount: 0,
+            // criteria-level tallies for quality score
+            criteriaPass: 0,
+            criteriaFail: 0,
           }
         }
         const s = stats[r.agentName]
         s.total++
         if (r.result === 'pass') s.pass++
         else s.fail++
-        // accumulate individual call scores for cumulative average
+
+        // cumulative average of per-call weighted scores → passRate
         if (typeof r.score === 'number') {
           s.scoreSum += r.score
           s.scoredCount++
         }
+
+        // criteria attribute counts → qualityScore
+        Object.values(r.scores || {}).forEach((val) => {
+          if (val === 'pass' || val === 'na') s.criteriaPass++
+          else if (val === 'fail') s.criteriaFail++
+        })
       })
 
     Object.values(stats).forEach((s) => {
-      // if we have weighted scores, average them cumulatively
-      // otherwise fall back to pass/total ratio
+      // Pass Rate: cumulative average of individual call scores
       s.passRate = s.scoredCount > 0
         ? Math.round(s.scoreSum / s.scoredCount)
         : s.total > 0 ? Math.round((s.pass / s.total) * 100) : 0
+
+      // Quality Score: passed criteria attributes / total scored criteria attributes
+      const totalCriteria = s.criteriaPass + s.criteriaFail
+      s.qualityScore = totalCriteria > 0
+        ? Math.round((s.criteriaPass / totalCriteria) * 100)
+        : null
     })
 
     return stats
