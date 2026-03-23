@@ -27,13 +27,14 @@ function ScoreSummary({ scores, criteria }) {
   const scored = criteria.filter((c) => scores[c.id])
   const active = scored.filter((c) => scores[c.id] !== 'na')
   const score = calcWeightedScore(scores, criteria)
-  const allScored = criteria.length > 0 && criteria.every((c) => scores[c.id])
 
   if (criteria.length === 0) return null
 
   const isPassing = score !== null && score >= 60
   const color = score === null ? '#5a5a72' : isPassing ? '#00d4aa' : '#ff6b6b'
-  const bgColor = score === null ? 'bg-surface3/50' : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'
+  const bgColor = score === null
+    ? 'bg-surface3/50 border-border'
+    : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'
 
   return (
     <div className={`rounded-xl border p-4 mb-5 ${bgColor}`}>
@@ -41,22 +42,11 @@ function ScoreSummary({ scores, criteria }) {
         <div className="font-syne font-bold text-sm">Score Summary</div>
         <div className="flex items-center gap-2">
           {score !== null && (
-            <span
-              className="font-syne font-extrabold text-2xl leading-none"
-              style={{ color }}
-            >
-              {score}%
-            </span>
+            <span className="font-syne font-extrabold text-2xl leading-none" style={{ color }}>{score}%</span>
           )}
           {score !== null && (
-            <span
-              className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border"
-              style={{
-                color,
-                borderColor: color,
-                background: isPassing ? 'rgba(0,212,170,0.1)' : 'rgba(255,107,107,0.1)',
-              }}
-            >
+            <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              style={{ color, borderColor: color, background: isPassing ? 'rgba(0,212,170,0.1)' : 'rgba(255,107,107,0.1)' }}>
               {isPassing ? '✓ PASS' : '✗ FAIL'}
             </span>
           )}
@@ -65,23 +55,12 @@ function ScoreSummary({ scores, criteria }) {
           )}
         </div>
       </div>
-
-      {/* Score bar */}
       <div className="h-2 bg-surface3 rounded-full overflow-hidden mb-2 relative">
         {score !== null && (
-          <div
-            className="h-full rounded-full score-bar-fill"
-            style={{ width: `${score}%`, background: color }}
-          />
+          <div className="h-full rounded-full score-bar-fill" style={{ width: `${score}%`, background: color }} />
         )}
-        {/* 60% threshold marker */}
-        <div
-          className="absolute top-0 bottom-0 w-px bg-txt3/60"
-          style={{ left: '60%' }}
-          title="Pass threshold: 60%"
-        />
+        <div className="absolute top-0 bottom-0 w-px bg-txt3/60" style={{ left: '60%' }} />
       </div>
-
       <div className="flex items-center justify-between text-[10px] font-mono text-txt3">
         <span>{scored.length}/{criteria.length} scored{active.length !== scored.length ? ` (${scored.length - active.length} N/A)` : ''}</span>
         <span>Pass threshold: 60%</span>
@@ -101,7 +80,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
   const fileRef = useRef()
 
   const agentNames = [...new Set(state.reviews.map((r) => r.agentName))]
-
   const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
   const handleSubmit = () => {
@@ -117,7 +95,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     setScores({})
     const score = calcWeightedScore(scores, state.criteria)
     const passed = score === null ? true : score >= 60
-    emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'} (${score ?? '—'}%)`)
+    emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
   }
 
   const handleCSV = (file) => {
@@ -126,23 +104,48 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     reader.onload = (e) => {
       const lines = e.target.result.trim().split('\n')
       const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/"/g, ''))
-      const required = ['agent_name', 'call_link', 'reviewer']
+
+      const required = ['cid_phone', 'booking_id', 'request_type', 'agent_email']
       const missing = required.filter((r) => !headers.includes(r))
-      if (missing.length) { emitToast(`Missing columns: ${missing.join(', ')}`, 'error'); return }
+      if (missing.length) {
+        emitToast(`Missing columns: ${missing.join(', ')}`, 'error'); return
+      }
 
       const rows = []
       for (let i = 1; i < lines.length; i++) {
-        const vals = lines[i].split(',').map((v) => v.trim().replace(/"/g, ''))
+        const line = lines[i].trim()
+        if (!line) continue
+        const vals = line.split(',').map((v) => v.trim().replace(/"/g, ''))
         const row = {}
         headers.forEach((h, idx) => (row[h] = vals[idx] || ''))
-        if (!row.agent_name || !row.call_link) continue
+
+        if (!row.agent_email) continue
+
+        // derive agent name from email (part before @)
+        const agentName = row.agent_email.includes('@')
+          ? row.agent_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+          : row.agent_email
+
         rows.push({
-          agentName: row.agent_name, agentId: row.agent_id || '',
-          callDate: row.call_date || new Date().toISOString().split('T')[0],
-          callLink: row.call_link, reviewer: row.reviewer, notes: row.notes || '',
-          scores: {}, result: 'pending',
+          agentName,
+          agentId:     row.booking_id   || '',
+          agentEmail:  row.agent_email  || '',
+          cidPhone:    row.cid_phone    || '',
+          bookingId:   row.booking_id   || '',
+          requestType: row.request_type || '',
+          callDate:    row.call_date    || new Date().toISOString().split('T')[0],
+          callLink:    '',
+          reviewer:    '',
+          notes:       '',
+          scores:      {},
+          result:      'pending',
         })
       }
+
+      if (rows.length === 0) {
+        emitToast('No valid rows found in CSV', 'error'); return
+      }
+
       addReviews(rows)
       setCsvPreview(rows.length)
       emitToast(`Imported ${rows.length} calls ✓`)
@@ -215,7 +218,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                       </div>
                     )}
                   </div>
-
                   {state.criteria.length === 0
                     ? <div className="text-center py-6 text-txt3 text-sm">No criteria defined yet. Go to QA Criteria to add some.</div>
                     : <>
@@ -239,14 +241,16 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                             </div>
                           ))}
                         </div>
-
                         <ScoreSummary scores={scores} criteria={state.criteria} />
                       </>
                   }
                 </div>
 
                 <div className="flex justify-end gap-2.5">
-                  <Btn variant="ghost" onClick={() => { setForm({ agentName:'',agentId:'',callDate:new Date().toISOString().split('T')[0],callLink:'',reviewer:'',notes:'',grade:'' }); setScores({}) }}>Clear</Btn>
+                  <Btn variant="ghost" onClick={() => {
+                    setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
+                    setScores({})
+                  }}>Clear</Btn>
                   <Btn onClick={handleSubmit}>Save Review ✓</Btn>
                 </div>
               </div>
@@ -255,10 +259,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* CSV Tab */}
             {tab === 'csv' && (
               <div>
-                <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-txt2 mb-4">
-                  ℹ️ CSV must have columns:&nbsp;
-                  <span className="text-accent font-medium">agent_name, agent_id, call_date, call_link, reviewer</span>
+                {/* Required columns info */}
+                <div className="flex flex-col gap-1.5 px-4 py-3.5 bg-accent/8 border border-accent/20 rounded-lg mb-4">
+                  <div className="text-xs text-txt2 font-medium mb-1">ℹ️ Required CSV columns:</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {[
+                      ['cid_phone',    'Customer phone / CID'],
+                      ['booking_id',   'Booking or case ID'],
+                      ['request_type', 'Type of request'],
+                      ['agent_email',  'Agent email address'],
+                    ].map(([col, desc]) => (
+                      <div key={col} className="flex items-center gap-2">
+                        <span className="font-mono text-[11px] text-accent font-medium">{col}</span>
+                        <span className="text-txt3 text-[10px]">— {desc}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
                 <div
                   onClick={() => fileRef.current?.click()}
                   className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-all"
@@ -267,12 +285,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   <div className="text-sm text-txt2 mb-1">Click to upload or drag & drop CSV</div>
                   <div className="font-mono text-[11px] text-txt3">calls-import.csv</div>
                 </div>
-                <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => handleCSV(e.target.files[0])} />
+                <input ref={fileRef} type="file" accept=".csv" className="hidden"
+                  onChange={(e) => { handleCSV(e.target.files[0]); e.target.value = '' }} />
+
                 {csvPreview !== null && (
                   <div className="mt-4 flex items-center gap-2 px-3.5 py-2.5 bg-pass/8 border border-pass/20 rounded-lg text-xs text-pass">
                     ✓ {csvPreview} calls imported successfully.
                   </div>
                 )}
+
+                {/* Sample format hint */}
+                <div className="mt-4 px-4 py-3 bg-surface2 border border-border rounded-lg">
+                  <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest mb-2">Sample format</div>
+                  <div className="font-mono text-[10px] text-txt2 leading-relaxed overflow-x-auto whitespace-nowrap">
+                    cid_phone,booking_id,request_type,agent_email<br />
+                    +9715512345,BK-001,Cancellation,sara.ali@company.com<br />
+                    +9715598765,BK-002,Rebooking,ahmed.k@company.com
+                  </div>
+                </div>
               </div>
             )}
           </div>
