@@ -69,6 +69,24 @@ function ScoreSummary({ scores, criteria }) {
   )
 }
 
+// Derive a readable agent name from email or plain name string
+function deriveAgentName(agentField) {
+  if (!agentField) return ''
+  const base = agentField.includes('@') ? agentField.split('@')[0] : agentField
+  return base.replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim()
+}
+
+// Format seconds into mm:ss or h:mm:ss
+function formatDuration(seconds) {
+  const s = parseInt(seconds, 10)
+  if (isNaN(s) || s < 0) return ''
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+
 export default function ReviewCall({ state, addReview, addReviews }) {
   const [tab, setTab] = useState('manual')
   const [form, setForm] = useState({
@@ -103,42 +121,71 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     const reader = new FileReader()
     reader.onload = (e) => {
       const lines = e.target.result.trim().split('\n')
+      if (lines.length < 2) { emitToast('CSV file is empty', 'error'); return }
+
       const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/"/g, ''))
 
-      const required = ['cid_phone', 'booking_id', 'request_type', 'agent_email']
-      const missing = required.filter((r) => !headers.includes(r))
-      if (missing.length) {
-        emitToast(`Missing columns: ${missing.join(', ')}`, 'error'); return
+      // Only agent is strictly required
+      if (!headers.includes('agent')) {
+        emitToast('Missing required column: agent', 'error'); return
       }
 
       const rows = []
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim()
         if (!line) continue
-        const vals = line.split(',').map((v) => v.trim().replace(/"/g, ''))
+
+        // Handle quoted fields that may contain commas
+        const vals = []
+        let inQuotes = false
+        let current = ''
+        for (const ch of line) {
+          if (ch === '"') { inQuotes = !inQuotes }
+          else if (ch === ',' && !inQuotes) { vals.push(current.trim()); current = '' }
+          else { current += ch }
+        }
+        vals.push(current.trim())
+
         const row = {}
-        headers.forEach((h, idx) => (row[h] = vals[idx] || ''))
+        headers.forEach((h, idx) => (row[h] = (vals[idx] || '').replace(/^"|"$/g, '').trim()))
 
-        if (!row.agent_email) continue
+        if (!row.agent) continue
 
-        // derive agent name from email (part before @)
-        const agentName = row.agent_email.includes('@')
-          ? row.agent_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-          : row.agent_email
+        // Extract date from callAnswered timestamp (e.g. "2026-03-16 09:01:57" → "2026-03-16")
+        const callDate = row.callanswered
+          ? row.callanswered.split(' ')[0]
+          : new Date().toISOString().split('T')[0]
 
         rows.push({
-          agentName,
-          agentId:     row.booking_id   || '',
-          agentEmail:  row.agent_email  || '',
-          cidPhone:    row.cid_phone    || '',
-          bookingId:   row.booking_id   || '',
-          requestType: row.request_type || '',
-          callDate:    row.call_date    || new Date().toISOString().split('T')[0],
-          callLink:    '',
-          reviewer:    '',
-          notes:       '',
-          scores:      {},
-          result:      'pending',
+          // Core identity
+          agentName:    deriveAgentName(row.agent),
+          agentEmail:   row.agent,
+          agentId:      row.booking_id || '',
+
+          // New fields from this format
+          cidPhone:     row.cidphone     || '',
+          srvcidPhone:  row.srvcidphone  || '',
+          cidChat:      row.cidchat      || '',
+          bookingId:    row.booking_id   || '',
+          requestType:  row.request_type || '',
+          queue:        row.queue        || '',
+          talkDuration: row.talk_duration  ? formatDuration(row.talk_duration)  : '',
+          waitDuration: row.wait_duration  ? formatDuration(row.wait_duration)  : '',
+          wrapDuration: row.wrap_duration  ? formatDuration(row.wrap_duration)  : '',
+          transferred:  row.transfered === '1' ? 'Yes' : row.transfered === '' ? '' : 'No',
+
+          // Timestamps
+          callDate,
+          callAnswered:    row.callanswered    || '',
+          callWrapupStart: row.callwrapupstart || '',
+          callWrapupEnd:   row.callwrapupend   || '',
+
+          // Standard fields
+          callLink:  '',
+          reviewer:  '',
+          notes:     '',
+          scores:    {},
+          result:    'pending',
         })
       }
 
@@ -259,18 +306,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* CSV Tab */}
             {tab === 'csv' && (
               <div>
-                {/* Required columns info */}
-                <div className="flex flex-col gap-1.5 px-4 py-3.5 bg-accent/8 border border-accent/20 rounded-lg mb-4">
-                  <div className="text-xs text-txt2 font-medium mb-1">ℹ️ Required CSV columns:</div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {/* Column reference */}
+                <div className="flex flex-col gap-2 px-4 py-3.5 bg-accent/8 border border-accent/20 rounded-lg mb-4">
+                  <div className="text-xs text-txt2 font-medium">ℹ️ Supported CSV columns — only <span className="text-accent font-bold">agent</span> is required:</div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1">
                     {[
-                      ['cid_phone',    'Customer phone / CID'],
-                      ['booking_id',   'Booking or case ID'],
-                      ['request_type', 'Type of request'],
-                      ['agent_email',  'Agent email address'],
+                      ['agent',          'Agent email — required'],
+                      ['cidPhone',       'Customer phone / CID'],
+                      ['booking_id',     'Booking or case ID'],
+                      ['request_type',   'Type of request'],
+                      ['queue',          'Queue / team'],
+                      ['callAnswered',   'Call timestamp (auto-extracts date)'],
+                      ['talk_duration',  'Talk time in seconds'],
+                      ['wait_duration',  'Wait time in seconds'],
+                      ['wrap_duration',  'Wrap-up time in seconds'],
+                      ['transfered',     '1 = transferred, blank = no'],
                     ].map(([col, desc]) => (
-                      <div key={col} className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] text-accent font-medium">{col}</span>
+                      <div key={col} className="flex items-start gap-2">
+                        <span className={`font-mono text-[10px] font-medium shrink-0 ${col === 'agent' ? 'text-accent' : 'text-txt2'}`}>{col}</span>
                         <span className="text-txt3 text-[10px]">— {desc}</span>
                       </div>
                     ))}
@@ -293,16 +346,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                     ✓ {csvPreview} calls imported successfully.
                   </div>
                 )}
-
-                {/* Sample format hint */}
-                <div className="mt-4 px-4 py-3 bg-surface2 border border-border rounded-lg">
-                  <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest mb-2">Sample format</div>
-                  <div className="font-mono text-[10px] text-txt2 leading-relaxed overflow-x-auto whitespace-nowrap">
-                    cid_phone,booking_id,request_type,agent_email<br />
-                    +9715512345,BK-001,Cancellation,sara.ali@company.com<br />
-                    +9715598765,BK-002,Rebooking,ahmed.k@company.com
-                  </div>
-                </div>
               </div>
             )}
           </div>
