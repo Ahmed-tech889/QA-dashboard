@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Btn, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
 import { calcWeightedScore } from '../store/useStore'
@@ -6,9 +6,9 @@ import { calcWeightedScore } from '../store/useStore'
 function PFButton({ label, selected, onClick, isPass, isNA }) {
   let activeStyle = ''
   if (selected) {
-    if (isNA) activeStyle = 'bg-txt3/15 text-txt2 border-txt3'
+    if (isNA)        activeStyle = 'bg-txt3/15 text-txt2 border-txt3'
     else if (isPass) activeStyle = 'bg-pass/15 text-pass border-pass'
-    else activeStyle = 'bg-fail/15 text-fail border-fail'
+    else             activeStyle = 'bg-fail/15 text-fail border-fail'
   } else {
     activeStyle = 'bg-surface3 text-txt3 border-border hover:text-txt'
   }
@@ -70,7 +70,7 @@ function deriveAgentName(agentField) {
 }
 
 const EMPTY_FORM = {
-  agentName: '', agentId: '', agentEmail: '', cidPhone: '', bookingId: '',
+  agentName: '', agentEmail: '', cidPhone: '', bookingId: '',
   callDate: new Date().toISOString().split('T')[0],
   callLink: '', reviewer: '', notes: '', grade: '',
 }
@@ -80,55 +80,35 @@ export default function ReviewCall({ state, addReview, addReviews }) {
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [scores, setScores] = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
-  const [autoFilledFrom, setAutoFilledFrom] = useState(null) // stores the matched review id
+  const [autoFilled, setAutoFilled] = useState(false)
   const fileRef = useRef()
 
-  const agentNames  = [...new Set(state.reviews.map((r) => r.agentName))].filter(Boolean)
-  const agentEmails = [...new Set(state.reviews.map((r) => r.agentEmail))].filter(Boolean)
-  const cidPhones   = [...new Set(state.reviews.map((r) => r.cidPhone))].filter(Boolean)
-  const bookingIds  = [...new Set(state.reviews.map((r) => r.bookingId))].filter(Boolean)
+  const cidPhones = [...new Set(state.reviews.map((r) => r.cidPhone))].filter(Boolean)
+  const setScore  = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
-  const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
+  // Only cidPhone triggers auto-fill
+  const handleCidPhoneChange = useCallback((value) => {
+    setForm((f) => ({ ...f, cidPhone: value }))
+    setAutoFilled(false)
 
-  // Find a matching call log record and auto-fill form fields
-  const tryAutoFill = useCallback((field, value) => {
-    if (!value || value.length < 3) {
-      setAutoFilledFrom(null)
-      return
-    }
-    const val = value.toLowerCase().trim()
+    if (!value || value.trim().length < 3) return
 
-    // Search existing reviews for a match on the changed field
-    const match = state.reviews.find((r) => {
-      if (field === 'bookingId')   return (r.bookingId   || '').toLowerCase() === val
-      if (field === 'cidPhone')    return (r.cidPhone    || '').toLowerCase() === val
-      if (field === 'agentEmail')  return (r.agentEmail  || '').toLowerCase() === val
-      if (field === 'agentName')   return (r.agentName   || '').toLowerCase() === val
-      return false
-    })
+    const match = state.reviews.find(
+      (r) => (r.cidPhone || '').toLowerCase().trim() === value.toLowerCase().trim()
+    )
 
-    if (!match) { setAutoFilledFrom(null); return }
+    if (!match) return
 
-    // Fill in all available fields from the matched record, but don't overwrite the field the user is currently typing
-    setForm((prev) => ({
-      ...prev,
-      // Only fill fields that are currently empty or already came from autofill, never overwrite user-typed content
-      agentName:  field !== 'agentName'  && !prev.agentName  ? (match.agentName  || prev.agentName)  : prev.agentName,
-      agentEmail: field !== 'agentEmail' && !prev.agentEmail ? (match.agentEmail || prev.agentEmail) : prev.agentEmail,
-      cidPhone:   field !== 'cidPhone'   && !prev.cidPhone   ? (match.cidPhone   || prev.cidPhone)   : prev.cidPhone,
-      bookingId:  field !== 'bookingId'  && !prev.bookingId  ? (match.bookingId  || prev.bookingId)  : prev.bookingId,
-      agentId:    !prev.agentId   ? (match.agentId   || prev.agentId)   : prev.agentId,
-      callDate:   !prev.callDate  ? (match.callDate  || prev.callDate)  : prev.callDate,
-      requestType: !prev.requestType ? (match.requestType || '') : prev.requestType,
-      queue:       !prev.queue       ? (match.queue       || '') : prev.queue,
+    setForm((f) => ({
+      ...f,
+      cidPhone:   value,
+      agentName:  match.agentName  || f.agentName,
+      agentEmail: match.agentEmail || f.agentEmail,
+      bookingId:  match.bookingId  || f.bookingId,
+      callDate:   match.callDate   || f.callDate,
     }))
-    setAutoFilledFrom(match.id)
+    setAutoFilled(true)
   }, [state.reviews])
-
-  const handleFieldChange = (field, value) => {
-    setForm((f) => ({ ...f, [field]: value }))
-    tryAutoFill(field, value)
-  }
 
   const handleSubmit = () => {
     if (!form.agentName || !form.reviewer) {
@@ -138,10 +118,10 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     if (state.criteria.length > 0 && unscored.length > 0) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
-    addReview({ ...form, scores })
+    addReview({ ...form })
     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
     setScores({})
-    setAutoFilledFrom(null)
+    setAutoFilled(false)
     const score = calcWeightedScore(scores, state.criteria)
     const passed = score === null ? true : score >= 60
     emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
@@ -172,7 +152,12 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         headers.forEach((h, idx) => (row[h] = (vals[idx] || '').replace(/^"|"$/g, '').trim()))
         if (!row.agent) continue
         const callDate = row.callanswered ? row.callanswered.split(' ')[0] : new Date().toISOString().split('T')[0]
-        const fmt = (s) => { const n = parseInt(s, 10); if (isNaN(n) || n < 0) return ''; const h = Math.floor(n/3600), m = Math.floor((n%3600)/60), sec = n%60; return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}` }
+        const fmt = (s) => {
+          const n = parseInt(s, 10)
+          if (isNaN(n) || n < 0) return ''
+          const h = Math.floor(n / 3600), m = Math.floor((n % 3600) / 60), sec = n % 60
+          return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`
+        }
         rows.push({
           agentName: deriveAgentName(row.agent), agentEmail: row.agent,
           agentId: row.booking_id || '', cidPhone: row.cidphone || '',
@@ -200,6 +185,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         <Panel>
           <PanelHeader title="🎧 Log a Call Review" />
           <div className="p-6">
+
             {/* Tabs */}
             <div className="flex gap-1 mb-5">
               {['manual', 'csv'].map((t) => (
@@ -214,77 +200,101 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
+
                 {/* Auto-fill notice */}
-                {autoFilledFrom && (
+                {autoFilled && (
                   <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-accent mb-4">
                     <span>⚡</span>
-                    <span>Fields auto-filled from a matching call log record. You can edit them freely.</span>
-                    <button
-                      onClick={() => { setAutoFilledFrom(null) }}
+                    <span>Fields auto-filled from a matching call log record. You can still edit them.</span>
+                    <button onClick={() => setAutoFilled(false)}
                       className="ml-auto text-txt3 hover:text-txt transition-colors font-mono">✕</button>
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mb-5">
-                  {/* Agent Name */}
-                  <Field label="Agent Name">
-                    <input
-                      value={form.agentName}
-                      onChange={(e) => handleFieldChange('agentName', e.target.value)}
-                      placeholder="e.g. Sara Ali"
-                      list="agent-name-dl"
-                    />
-                    <datalist id="agent-name-dl">
-                      {agentNames.map((n) => <option key={n} value={n} />)}
-                    </datalist>
-                  </Field>
 
-                  {/* Agent Email */}
-                  <Field label="Agent Email">
-                    <input
-                      value={form.agentEmail || ''}
-                      onChange={(e) => handleFieldChange('agentEmail', e.target.value)}
-                      placeholder="e.g. sara.ali@company.com"
-                      list="agent-email-dl"
-                    />
-                    <datalist id="agent-email-dl">
-                      {agentEmails.map((e) => <option key={e} value={e} />)}
-                    </datalist>
-                  </Field>
-
-                  {/* CID Phone */}
+                  {/* CID / Phone — the lookup trigger */}
                   <Field label="CID / Phone">
-                    <input
-                      value={form.cidPhone || ''}
-                      onChange={(e) => handleFieldChange('cidPhone', e.target.value)}
-                      placeholder="e.g. +9715512345"
-                      list="cid-phone-dl"
-                    />
+                    <div className="relative">
+                      <input
+                        value={form.cidPhone}
+                        onChange={(e) => handleCidPhoneChange(e.target.value)}
+                        placeholder="e.g. +9715512345"
+                        list="cid-phone-dl"
+                      />
+                      {autoFilled && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
                     <datalist id="cid-phone-dl">
                       {cidPhones.map((c) => <option key={c} value={c} />)}
                     </datalist>
                   </Field>
 
-                  {/* Booking ID */}
+                  {/* Booking ID — auto-filled, still editable */}
                   <Field label="Booking ID">
-                    <input
-                      value={form.bookingId || ''}
-                      onChange={(e) => handleFieldChange('bookingId', e.target.value)}
-                      placeholder="e.g. BK-001 or 295360242"
-                      list="booking-id-dl"
-                    />
-                    <datalist id="booking-id-dl">
-                      {bookingIds.map((b) => <option key={b} value={b} />)}
-                    </datalist>
+                    <div className="relative">
+                      <input
+                        value={form.bookingId}
+                        onChange={(e) => setForm((f) => ({ ...f, bookingId: e.target.value }))}
+                        placeholder="e.g. 295360242"
+                      />
+                      {autoFilled && form.bookingId && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
                   </Field>
 
-                  {/* Call Date */}
+                  {/* Agent Name — auto-filled, still editable */}
+                  <Field label="Agent Name">
+                    <div className="relative">
+                      <input
+                        value={form.agentName}
+                        onChange={(e) => setForm((f) => ({ ...f, agentName: e.target.value }))}
+                        placeholder="e.g. Sara Ali"
+                      />
+                      {autoFilled && form.agentName && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
+                  </Field>
+
+                  {/* Agent Email — auto-filled, still editable */}
+                  <Field label="Agent Email">
+                    <div className="relative">
+                      <input
+                        value={form.agentEmail}
+                        onChange={(e) => setForm((f) => ({ ...f, agentEmail: e.target.value }))}
+                        placeholder="e.g. sara.ali@company.com"
+                      />
+                      {autoFilled && form.agentEmail && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
+                  </Field>
+
+                  {/* Call Date — auto-filled, still editable */}
                   <Field label="Call Date">
-                    <input
-                      type="date"
-                      value={form.callDate}
-                      onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))}
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={form.callDate}
+                        onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))}
+                      />
+                      {autoFilled && (
+                        <span className="absolute right-8 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
                   </Field>
 
                   {/* Reviewer */}
@@ -372,7 +382,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   <Btn variant="ghost" onClick={() => {
                     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
                     setScores({})
-                    setAutoFilledFrom(null)
+                    setAutoFilled(false)
                   }}>Clear</Btn>
                   <Btn onClick={handleSubmit}>Save Review ✓</Btn>
                 </div>
