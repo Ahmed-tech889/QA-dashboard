@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Btn, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
 import { calcWeightedScore } from '../store/useStore'
@@ -13,11 +13,8 @@ function PFButton({ label, selected, onClick, isPass, isNA }) {
     activeStyle = 'bg-surface3 text-txt3 border-border hover:text-txt'
   }
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3.5 py-1 rounded-lg text-xs font-semibold font-mono cursor-pointer border transition-all ${activeStyle}`}
-    >
+    <button type="button" onClick={onClick}
+      className={`px-3.5 py-1 rounded-lg text-xs font-semibold font-mono cursor-pointer border transition-all ${activeStyle}`}>
       {label}
     </button>
   )
@@ -27,15 +24,12 @@ function ScoreSummary({ scores, criteria }) {
   const scored = criteria.filter((c) => scores[c.id])
   const active = scored.filter((c) => scores[c.id] !== 'na')
   const score = calcWeightedScore(scores, criteria)
-
   if (criteria.length === 0) return null
-
   const isPassing = score !== null && score >= 60
   const color = score === null ? '#5a5a72' : isPassing ? '#00d4aa' : '#ff6b6b'
   const bgColor = score === null
     ? 'bg-surface3/50 border-border'
     : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'
-
   return (
     <div className={`rounded-xl border p-4 mb-5 ${bgColor}`}>
       <div className="flex items-center justify-between mb-3">
@@ -69,48 +63,85 @@ function ScoreSummary({ scores, criteria }) {
   )
 }
 
-// Derive a readable agent name from email or plain name string
 function deriveAgentName(agentField) {
   if (!agentField) return ''
   const base = agentField.includes('@') ? agentField.split('@')[0] : agentField
   return base.replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim()
 }
 
-// Format seconds into mm:ss or h:mm:ss
-function formatDuration(seconds) {
-  const s = parseInt(seconds, 10)
-  if (isNaN(s) || s < 0) return ''
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  return `${m}:${String(sec).padStart(2, '0')}`
+const EMPTY_FORM = {
+  agentName: '', agentId: '', agentEmail: '', cidPhone: '', bookingId: '',
+  callDate: new Date().toISOString().split('T')[0],
+  callLink: '', reviewer: '', notes: '', grade: '',
 }
 
 export default function ReviewCall({ state, addReview, addReviews }) {
   const [tab, setTab] = useState('manual')
-  const [form, setForm] = useState({
-    agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0],
-    callLink: '', reviewer: '', notes: '', grade: '',
-  })
+  const [form, setForm] = useState({ ...EMPTY_FORM })
   const [scores, setScores] = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
+  const [autoFilledFrom, setAutoFilledFrom] = useState(null) // stores the matched review id
   const fileRef = useRef()
 
-  const agentNames = [...new Set(state.reviews.map((r) => r.agentName))]
+  const agentNames  = [...new Set(state.reviews.map((r) => r.agentName))].filter(Boolean)
+  const agentEmails = [...new Set(state.reviews.map((r) => r.agentEmail))].filter(Boolean)
+  const cidPhones   = [...new Set(state.reviews.map((r) => r.cidPhone))].filter(Boolean)
+  const bookingIds  = [...new Set(state.reviews.map((r) => r.bookingId))].filter(Boolean)
+
   const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
+  // Find a matching call log record and auto-fill form fields
+  const tryAutoFill = useCallback((field, value) => {
+    if (!value || value.length < 3) {
+      setAutoFilledFrom(null)
+      return
+    }
+    const val = value.toLowerCase().trim()
+
+    // Search existing reviews for a match on the changed field
+    const match = state.reviews.find((r) => {
+      if (field === 'bookingId')   return (r.bookingId   || '').toLowerCase() === val
+      if (field === 'cidPhone')    return (r.cidPhone    || '').toLowerCase() === val
+      if (field === 'agentEmail')  return (r.agentEmail  || '').toLowerCase() === val
+      if (field === 'agentName')   return (r.agentName   || '').toLowerCase() === val
+      return false
+    })
+
+    if (!match) { setAutoFilledFrom(null); return }
+
+    // Fill in all available fields from the matched record, but don't overwrite the field the user is currently typing
+    setForm((prev) => ({
+      ...prev,
+      // Only fill fields that are currently empty or already came from autofill, never overwrite user-typed content
+      agentName:  field !== 'agentName'  && !prev.agentName  ? (match.agentName  || prev.agentName)  : prev.agentName,
+      agentEmail: field !== 'agentEmail' && !prev.agentEmail ? (match.agentEmail || prev.agentEmail) : prev.agentEmail,
+      cidPhone:   field !== 'cidPhone'   && !prev.cidPhone   ? (match.cidPhone   || prev.cidPhone)   : prev.cidPhone,
+      bookingId:  field !== 'bookingId'  && !prev.bookingId  ? (match.bookingId  || prev.bookingId)  : prev.bookingId,
+      agentId:    !prev.agentId   ? (match.agentId   || prev.agentId)   : prev.agentId,
+      callDate:   !prev.callDate  ? (match.callDate  || prev.callDate)  : prev.callDate,
+      requestType: !prev.requestType ? (match.requestType || '') : prev.requestType,
+      queue:       !prev.queue       ? (match.queue       || '') : prev.queue,
+    }))
+    setAutoFilledFrom(match.id)
+  }, [state.reviews])
+
+  const handleFieldChange = (field, value) => {
+    setForm((f) => ({ ...f, [field]: value }))
+    tryAutoFill(field, value)
+  }
+
   const handleSubmit = () => {
-    if (!form.agentName || !form.callLink || !form.reviewer) {
-      emitToast('Agent name, call link, and reviewer are required', 'error'); return
+    if (!form.agentName || !form.reviewer) {
+      emitToast('Agent name and reviewer are required', 'error'); return
     }
     const unscored = state.criteria.filter((c) => !scores[c.id])
     if (state.criteria.length > 0 && unscored.length > 0) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
     addReview({ ...form, scores })
-    setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
+    setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
     setScores({})
+    setAutoFilledFrom(null)
     const score = calcWeightedScore(scores, state.criteria)
     const passed = score === null ? true : score >= 60
     emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
@@ -122,77 +153,40 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     reader.onload = (e) => {
       const lines = e.target.result.trim().split('\n')
       if (lines.length < 2) { emitToast('CSV file is empty', 'error'); return }
-
       const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/"/g, ''))
-
-      // Only agent is strictly required
-      if (!headers.includes('agent')) {
-        emitToast('Missing required column: agent', 'error'); return
-      }
+      if (!headers.includes('agent')) { emitToast('Missing required column: agent', 'error'); return }
 
       const rows = []
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim()
         if (!line) continue
-
-        // Handle quoted fields that may contain commas
         const vals = []
-        let inQuotes = false
-        let current = ''
+        let inQuotes = false, current = ''
         for (const ch of line) {
           if (ch === '"') { inQuotes = !inQuotes }
           else if (ch === ',' && !inQuotes) { vals.push(current.trim()); current = '' }
           else { current += ch }
         }
         vals.push(current.trim())
-
         const row = {}
         headers.forEach((h, idx) => (row[h] = (vals[idx] || '').replace(/^"|"$/g, '').trim()))
-
         if (!row.agent) continue
-
-        // Extract date from callAnswered timestamp (e.g. "2026-03-16 09:01:57" → "2026-03-16")
-        const callDate = row.callanswered
-          ? row.callanswered.split(' ')[0]
-          : new Date().toISOString().split('T')[0]
-
+        const callDate = row.callanswered ? row.callanswered.split(' ')[0] : new Date().toISOString().split('T')[0]
+        const fmt = (s) => { const n = parseInt(s, 10); if (isNaN(n) || n < 0) return ''; const h = Math.floor(n/3600), m = Math.floor((n%3600)/60), sec = n%60; return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}` }
         rows.push({
-          // Core identity
-          agentName:    deriveAgentName(row.agent),
-          agentEmail:   row.agent,
-          agentId:      row.booking_id || '',
-
-          // New fields from this format
-          cidPhone:     row.cidphone     || '',
-          srvcidPhone:  row.srvcidphone  || '',
-          cidChat:      row.cidchat      || '',
-          bookingId:    row.booking_id   || '',
-          requestType:  row.request_type || '',
-          queue:        row.queue        || '',
-          talkDuration: row.talk_duration  ? formatDuration(row.talk_duration)  : '',
-          waitDuration: row.wait_duration  ? formatDuration(row.wait_duration)  : '',
-          wrapDuration: row.wrap_duration  ? formatDuration(row.wrap_duration)  : '',
-          transferred:  row.transfered === '1' ? 'Yes' : row.transfered === '' ? '' : 'No',
-
-          // Timestamps
-          callDate,
-          callAnswered:    row.callanswered    || '',
-          callWrapupStart: row.callwrapupstart || '',
-          callWrapupEnd:   row.callwrapupend   || '',
-
-          // Standard fields
-          callLink:  '',
-          reviewer:  '',
-          notes:     '',
-          scores:    {},
-          result:    'pending',
+          agentName: deriveAgentName(row.agent), agentEmail: row.agent,
+          agentId: row.booking_id || '', cidPhone: row.cidphone || '',
+          srvcidPhone: row.srvcidphone || '', cidChat: row.cidchat || '',
+          bookingId: row.booking_id || '', requestType: row.request_type || '',
+          queue: row.queue || '',
+          talkDuration: fmt(row.talk_duration), waitDuration: fmt(row.wait_duration), wrapDuration: fmt(row.wrap_duration),
+          transferred: row.transfered === '1' ? 'Yes' : row.transfered === '' ? '' : 'No',
+          callDate, callAnswered: row.callanswered || '',
+          callWrapupStart: row.callwrapupstart || '', callWrapupEnd: row.callwrapupend || '',
+          callLink: '', reviewer: '', notes: '', scores: {}, result: 'pending',
         })
       }
-
-      if (rows.length === 0) {
-        emitToast('No valid rows found in CSV', 'error'); return
-      }
-
+      if (rows.length === 0) { emitToast('No valid rows found in CSV', 'error'); return }
       addReviews(rows)
       setCsvPreview(rows.length)
       emitToast(`Imported ${rows.length} calls ✓`)
@@ -220,21 +214,89 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
+                {/* Auto-fill notice */}
+                {autoFilledFrom && (
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-accent mb-4">
+                    <span>⚡</span>
+                    <span>Fields auto-filled from a matching call log record. You can edit them freely.</span>
+                    <button
+                      onClick={() => { setAutoFilledFrom(null) }}
+                      className="ml-auto text-txt3 hover:text-txt transition-colors font-mono">✕</button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 mb-5">
+                  {/* Agent Name */}
                   <Field label="Agent Name">
-                    <input value={form.agentName} onChange={(e) => setForm((f) => ({ ...f, agentName: e.target.value }))}
-                      placeholder="e.g. Sara Al-Khatib" list="agent-dl" />
-                    <datalist id="agent-dl">{agentNames.map((n) => <option key={n} value={n} />)}</datalist>
+                    <input
+                      value={form.agentName}
+                      onChange={(e) => handleFieldChange('agentName', e.target.value)}
+                      placeholder="e.g. Sara Ali"
+                      list="agent-name-dl"
+                    />
+                    <datalist id="agent-name-dl">
+                      {agentNames.map((n) => <option key={n} value={n} />)}
+                    </datalist>
                   </Field>
-                  <Field label="Agent ID">
-                    <input value={form.agentId} onChange={(e) => setForm((f) => ({ ...f, agentId: e.target.value }))} placeholder="e.g. AGT-042" />
+
+                  {/* Agent Email */}
+                  <Field label="Agent Email">
+                    <input
+                      value={form.agentEmail || ''}
+                      onChange={(e) => handleFieldChange('agentEmail', e.target.value)}
+                      placeholder="e.g. sara.ali@company.com"
+                      list="agent-email-dl"
+                    />
+                    <datalist id="agent-email-dl">
+                      {agentEmails.map((e) => <option key={e} value={e} />)}
+                    </datalist>
                   </Field>
+
+                  {/* CID Phone */}
+                  <Field label="CID / Phone">
+                    <input
+                      value={form.cidPhone || ''}
+                      onChange={(e) => handleFieldChange('cidPhone', e.target.value)}
+                      placeholder="e.g. +9715512345"
+                      list="cid-phone-dl"
+                    />
+                    <datalist id="cid-phone-dl">
+                      {cidPhones.map((c) => <option key={c} value={c} />)}
+                    </datalist>
+                  </Field>
+
+                  {/* Booking ID */}
+                  <Field label="Booking ID">
+                    <input
+                      value={form.bookingId || ''}
+                      onChange={(e) => handleFieldChange('bookingId', e.target.value)}
+                      placeholder="e.g. BK-001 or 295360242"
+                      list="booking-id-dl"
+                    />
+                    <datalist id="booking-id-dl">
+                      {bookingIds.map((b) => <option key={b} value={b} />)}
+                    </datalist>
+                  </Field>
+
+                  {/* Call Date */}
                   <Field label="Call Date">
-                    <input type="date" value={form.callDate} onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))} />
+                    <input
+                      type="date"
+                      value={form.callDate}
+                      onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))}
+                    />
                   </Field>
+
+                  {/* Reviewer */}
                   <Field label="Reviewer">
-                    <input value={form.reviewer} onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))} placeholder="Your name" />
+                    <input
+                      value={form.reviewer}
+                      onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))}
+                      placeholder="Your name"
+                    />
                   </Field>
+
+                  {/* Performance Grade */}
                   <Field label="Performance Grade (optional)">
                     <select value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}>
                       <option value="">— No grade —</option>
@@ -245,11 +307,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                       })}
                     </select>
                   </Field>
-                  <Field label="Call Link" full>
-                    <input type="url" value={form.callLink} onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))} placeholder="https://portal.example.com/calls/12345" />
+
+                  {/* Call Link */}
+                  <Field label="Call Link (optional)">
+                    <input
+                      type="url"
+                      value={form.callLink}
+                      onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
+                      placeholder="https://portal.example.com/calls/12345"
+                    />
                   </Field>
+
+                  {/* Notes */}
                   <Field label="Notes (optional)" full>
-                    <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Any observations about this call..." />
+                    <textarea
+                      value={form.notes}
+                      onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Any observations about this call..."
+                    />
                   </Field>
                 </div>
 
@@ -295,8 +370,9 @@ export default function ReviewCall({ state, addReview, addReviews }) {
 
                 <div className="flex justify-end gap-2.5">
                   <Btn variant="ghost" onClick={() => {
-                    setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
+                    setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
                     setScores({})
+                    setAutoFilledFrom(null)
                   }}>Clear</Btn>
                   <Btn onClick={handleSubmit}>Save Review ✓</Btn>
                 </div>
@@ -306,21 +382,20 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* CSV Tab */}
             {tab === 'csv' && (
               <div>
-                {/* Column reference */}
                 <div className="flex flex-col gap-2 px-4 py-3.5 bg-accent/8 border border-accent/20 rounded-lg mb-4">
                   <div className="text-xs text-txt2 font-medium">ℹ️ Supported CSV columns — only <span className="text-accent font-bold">agent</span> is required:</div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1">
                     {[
-                      ['agent',          'Agent email — required'],
-                      ['cidPhone',       'Customer phone / CID'],
-                      ['booking_id',     'Booking or case ID'],
-                      ['request_type',   'Type of request'],
-                      ['queue',          'Queue / team'],
-                      ['callAnswered',   'Call timestamp (auto-extracts date)'],
-                      ['talk_duration',  'Talk time in seconds'],
-                      ['wait_duration',  'Wait time in seconds'],
-                      ['wrap_duration',  'Wrap-up time in seconds'],
-                      ['transfered',     '1 = transferred, blank = no'],
+                      ['agent',         'Agent email — required'],
+                      ['cidPhone',      'Customer phone / CID'],
+                      ['booking_id',    'Booking or case ID'],
+                      ['request_type',  'Type of request'],
+                      ['queue',         'Queue / team'],
+                      ['callAnswered',  'Call timestamp (auto-extracts date)'],
+                      ['talk_duration', 'Talk time in seconds'],
+                      ['wait_duration', 'Wait time in seconds'],
+                      ['wrap_duration', 'Wrap-up time in seconds'],
+                      ['transfered',    '1 = transferred, blank = no'],
                     ].map(([col, desc]) => (
                       <div key={col} className="flex items-start gap-2">
                         <span className={`font-mono text-[10px] font-medium shrink-0 ${col === 'agent' ? 'text-accent' : 'text-txt2'}`}>{col}</span>
