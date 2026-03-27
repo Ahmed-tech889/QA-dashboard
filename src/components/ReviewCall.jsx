@@ -23,13 +23,11 @@ function PFButton({ label, selected, onClick, isPass, isNA }) {
 function ScoreSummary({ scores, criteria }) {
   const scored = criteria.filter((c) => scores[c.id])
   const active = scored.filter((c) => scores[c.id] !== 'na')
-  const score = calcWeightedScore(scores, criteria)
+  const score  = calcWeightedScore(scores, criteria)
   if (criteria.length === 0) return null
   const isPassing = score !== null && score >= 60
-  const color = score === null ? '#5a5a72' : isPassing ? '#00d4aa' : '#ff6b6b'
-  const bgColor = score === null
-    ? 'bg-surface3/50 border-border'
-    : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'
+  const color   = score === null ? '#5a5a72' : isPassing ? '#00d4aa' : '#ff6b6b'
+  const bgColor = score === null ? 'bg-surface3/50 border-border' : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'
   return (
     <div className={`rounded-xl border p-4 mb-5 ${bgColor}`}>
       <div className="flex items-center justify-between mb-3">
@@ -64,34 +62,35 @@ function deriveAgentName(agentField) {
 }
 
 const EMPTY_FORM = {
-  agentName: '', agentEmail: '', cidPhone: '', bookingId: '',
+  agentName: '', agentEmail: '', sid: '', bookingId: '',
   callDate: new Date().toISOString().split('T')[0],
   callLink: '', reviewer: '', notes: '', grade: '',
 }
 
 export default function ReviewCall({ state, addReview, addReviews }) {
-  const [tab, setTab] = useState('manual')
-  const [form, setForm] = useState({ ...EMPTY_FORM })
-  const [scores, setScores] = useState({})
+  const [tab, setTab]           = useState('manual')
+  const [form, setForm]         = useState({ ...EMPTY_FORM })
+  const [scores, setScores]     = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
   const [autoFilled, setAutoFilled] = useState(false)
   const fileRef = useRef()
 
-  const cidPhones = [...new Set(state.reviews.map((r) => r.cidPhone))].filter(Boolean)
-  const setScore  = (id, val) => setScores((s) => ({ ...s, [id]: val }))
+  // Use sid field for the auto-fill lookup (previously cidPhone)
+  const sids     = [...new Set(state.reviews.map((r) => r.sid || r.cidPhone))].filter(Boolean)
+  const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
-  // Only cidPhone triggers auto-fill
-  const handleCidPhoneChange = useCallback((value) => {
-    setForm((f) => ({ ...f, cidPhone: value }))
+  // Only SID triggers auto-fill
+  const handleSidChange = useCallback((value) => {
+    setForm((f) => ({ ...f, sid: value }))
     setAutoFilled(false)
     if (!value || value.trim().length < 3) return
     const match = state.reviews.find(
-      (r) => (r.cidPhone || '').toLowerCase().trim() === value.toLowerCase().trim()
+      (r) => ((r.sid || r.cidPhone) || '').toLowerCase().trim() === value.toLowerCase().trim()
     )
     if (!match) return
     setForm((f) => ({
       ...f,
-      cidPhone:   value,
+      sid:        value,
       agentName:  match.agentName  || f.agentName,
       agentEmail: match.agentEmail || f.agentEmail,
       bookingId:  match.bookingId  || f.bookingId,
@@ -112,7 +111,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
     setScores({})
     setAutoFilled(false)
-    const score = calcWeightedScore(scores, state.criteria)
+    const score  = calcWeightedScore(scores, state.criteria)
     const passed = score === null ? true : score >= 60
     emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
   }
@@ -124,7 +123,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
       const lines = e.target.result.trim().split('\n')
       if (lines.length < 2) { emitToast('CSV file is empty', 'error'); return }
 
-      // Normalise headers: lowercase, trim, collapse spaces to underscore
       const headers = lines[0].split(',').map((h) =>
         h.trim().replace(/"/g, '').toLowerCase().replace(/\s+/g, '_')
       )
@@ -138,7 +136,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         const line = lines[i].trim()
         if (!line) continue
 
-        // Quote-aware split
         const vals = []
         let inQuotes = false, current = ''
         for (const ch of line) {
@@ -154,31 +151,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         if (!row.agent) continue
 
         rows.push({
-          // Identity
-          agentName:    deriveAgentName(row.agent),
-          agentEmail:   row.agent,
-          agentPhone:   row.agent_phone    || '',
-
-          // Call identifiers — '#' column → cidPhone (the lookup key)
-          cidPhone:     row['#']           || '',
-          customerPhone: row.customer_phone || '',
-          sid:          row.sid            || '',
-
-          // Call metadata
-          callDate:     row.date           || new Date().toISOString().split('T')[0],
-          callTime:     row.time           || '',
-          direction:    row.direction      || '',
-          queue:        row.queue          || '',
-          abandoned:    row.abandoned      || '',
-
-          // Durations (stored as-is from the file, e.g. "00:02:14")
-          waitDuration: row.waiting_time   || '',
-          ringDuration: row.ring_time      || '',
-          talkDuration: row.talk_time      || '',
-          holdDuration: row.hold_time      || '',
-          wrapDuration: row.wrap_up_time   || '',
-
-          // Standard fields
+          agentName:     deriveAgentName(row.agent),
+          agentEmail:    row.agent,
+          agentPhone:    row.agent_phone     || '',
+          sid:           row.sid             || '',
+          cidPhone:      row['#']            || '',
+          customerPhone: row.customer_phone  || '',
+          bookingId:     row.booking_id      || '',
+          requestType:   row.request_type    || '',
+          callDate:      row.date            || new Date().toISOString().split('T')[0],
+          callTime:      row.time            || '',
+          direction:     row.direction       || '',
+          queue:         row.queue           || '',
+          abandoned:     row.abandoned       || '',
+          waitDuration:  row.waiting_time    || '',
+          ringDuration:  row.ring_time       || '',
+          talkDuration:  row.talk_time       || '',
+          holdDuration:  row.hold_time       || '',
+          wrapDuration:  row.wrap_up_time    || '',
           callLink:  '',
           reviewer:  '',
           notes:     '',
@@ -195,23 +185,22 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     reader.readAsText(file)
   }
 
-  // CSV column reference matching the image
   const CSV_COLUMNS = [
-    ['Date',          'Call date',                  false],
-    ['Time',          'Call time',                  false],
-    ['SID',           'Session / call ID',          false],
-    ['Direction',     'Inbound or outbound',        false],
-    ['Queue',         'Queue name',                 false],
-    ['#',             'Customer phone / CID — used for auto-fill', false],
-    ['Abandoned',     'Whether call was abandoned', false],
-    ['Customer Phone','Customer phone number',      false],
-    ['Agent',         'Agent email address',        true],
-    ['Agent Phone',   'Agent phone number',         false],
-    ['Waiting Time',  'Wait duration',              false],
-    ['Ring Time',     'Ring duration',              false],
-    ['Talk Time',     'Talk duration',              false],
-    ['Hold Time',     'Hold duration',              false],
-    ['Wrap Up Time',  'Wrap-up duration',           false],
+    ['Date',          'Call date',                              false],
+    ['Time',          'Call time',                             false],
+    ['SID',           'Session / call ID',                     false],
+    ['Direction',     'Inbound or outbound',                   false],
+    ['Queue',         'Queue name',                            false],
+    ['#',             'Customer phone / CID',                  false],
+    ['Abandoned',     'Whether call was abandoned',            false],
+    ['Customer Phone','Customer phone number',                 false],
+    ['Agent',         'Agent email address — required',        true ],
+    ['Agent Phone',   'Agent phone number',                    false],
+    ['Waiting Time',  'Wait duration',                         false],
+    ['Ring Time',     'Ring duration',                         false],
+    ['Talk Time',     'Talk duration',                         false],
+    ['Hold Time',     'Hold duration',                         false],
+    ['Wrap Up Time',  'Wrap-up duration',                      false],
   ]
 
   return (
@@ -245,13 +234,15 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mb-5">
-                  <Field label="CID / Phone (#)">
+
+                  {/* SID — the lookup trigger (renamed from CID / Phone) */}
+                  <Field label="SID">
                     <div className="relative">
-                      <input value={form.cidPhone} onChange={(e) => handleCidPhoneChange(e.target.value)}
-                        placeholder="e.g. +9715512345" list="cid-phone-dl" />
+                      <input value={form.sid} onChange={(e) => handleSidChange(e.target.value)}
+                        placeholder="e.g. CA73f098ff..." list="sid-dl" />
                       {autoFilled && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
-                    <datalist id="cid-phone-dl">{cidPhones.map((c) => <option key={c} value={c} />)}</datalist>
+                    <datalist id="sid-dl">{sids.map((s) => <option key={s} value={s} />)}</datalist>
                   </Field>
 
                   <Field label="Booking ID">
@@ -273,7 +264,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   <Field label="Agent Email">
                     <div className="relative">
                       <input value={form.agentEmail} onChange={(e) => setForm((f) => ({ ...f, agentEmail: e.target.value }))}
-                        placeholder="e.g. sara.ali@company.com" />
+                        placeholder="e.g. sara.ali@momentumegypt.com" />
                       {autoFilled && form.agentEmail && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
                   </Field>
@@ -294,7 +285,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                     <select value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}>
                       <option value="">— No grade —</option>
                       {[...Array(10)].map((_, i) => {
-                        const val = 10 - i
+                        const val   = 10 - i
                         const color = val >= 8 ? '🟢' : val >= 5 ? '🟡' : '🔴'
                         return <option key={val} value={val}>{color} {val} / 10</option>
                       })}
@@ -371,9 +362,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1">
                     {CSV_COLUMNS.map(([col, desc, required]) => (
                       <div key={col} className="flex items-start gap-2">
-                        <span className={`font-mono text-[10px] font-medium shrink-0 ${required ? 'text-accent' : 'text-txt2'}`}>
-                          {col}
-                        </span>
+                        <span className={`font-mono text-[10px] font-medium shrink-0 ${required ? 'text-accent' : 'text-txt2'}`}>{col}</span>
                         <span className="text-txt3 text-[10px]">— {desc}</span>
                       </div>
                     ))}
