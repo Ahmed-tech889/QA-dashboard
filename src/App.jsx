@@ -50,7 +50,12 @@ export default function App() {
           />
         )
       case 'agents':
-        return <Agents getAgentStats={store.getAgentStats} state={store.state} />
+        return (
+          <Agents
+            getAgentStats={store.getAgentStats}
+            state={store.state}
+          />
+        )
       case 'reports':
         return (
           <Reports
