@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { Btn, EmptyState, Field, Panel, PanelHeader } from './ui'
+import { useState, useRef, useCallback } from 'react'
+import { Btn, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
 
 function PFButton({ label, selected, onClick, isPass }) {
@@ -17,31 +17,100 @@ function PFButton({ label, selected, onClick, isPass }) {
   )
 }
 
+const EMPTY_FORM = {
+  agentName: '', agentEmail: '', sid: '',
+  callDate: new Date().toISOString().split('T')[0],
+  callLink: '', reviewer: '', notes: '', grade: '',
+}
+
 export default function ReviewCall({ state, addReview, addReviews }) {
-  const [tab, setTab] = useState('manual')
-  const [form, setForm] = useState({
-    agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0],
-    callLink: '', reviewer: '', notes: '', grade: '',
-  })
-  const [scores, setScores] = useState({})
+  const [tab, setTab]               = useState('manual')
+  const [form, setForm]             = useState({ ...EMPTY_FORM })
+  const [scores, setScores]         = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
+  const [autoFilled, setAutoFilled] = useState(false)
   const fileRef = useRef()
 
-  const agentNames = [...new Set(state.reviews.map((r) => r.agentName))]
+  // All unique SIDs from imported call log records
+  const allSids = [...new Set(state.reviews.map((r) => r.sid).filter(Boolean))]
 
   const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
+  // SID lookup — fires on every keystroke in the SID field
+  const handleSidChange = useCallback((value) => {
+    setForm((f) => ({ ...f, sid: value }))
+    setAutoFilled(false)
+
+    const trimmed = value.trim()
+    if (!trimmed) return
+
+    // Find any call log record with this SID (exact match)
+    const match = state.reviews.find(
+      (r) => r.sid && r.sid.trim().toLowerCase() === trimmed.toLowerCase()
+    )
+    if (!match) return
+
+    // Auto-fill agent name, agent email, call date from the matched record
+    const derivedEmail = match.agentEmail
+      || (match.agentName
+        ? match.agentName.trim().toLowerCase().replace(/\s+/g, '.') + '@momentumegypt.com'
+        : '')
+
+    setForm((f) => ({
+      ...f,
+      sid:        trimmed,
+      agentName:  match.agentName  || f.agentName,
+      agentEmail: derivedEmail     || f.agentEmail,
+      callDate:   match.callDate   || f.callDate,
+    }))
+    setAutoFilled(true)
+  }, [state.reviews])
+
   const handleSubmit = () => {
-    if (!form.agentName || !form.callLink || !form.reviewer) {
-      emitToast('Agent name, call link, and reviewer are required', 'error'); return
+    if (!form.agentName || !form.reviewer) {
+      emitToast('Agent name and reviewer are required', 'error'); return
     }
     if (state.criteria.length > 0 && state.criteria.some((c) => !scores[c.id])) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
-    const passed = state.criteria.length === 0 || state.criteria.every((c) => scores[c.id] === 'pass')
-    addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
-    setForm({ agentName: '', agentId: '', callDate: new Date().toISOString().split('T')[0], callLink: '', reviewer: '', notes: '', grade: '' })
+
+    const totalScored = Object.keys(scores).length
+    const passed = totalScored === 0
+      ? true
+      : state.criteria.every((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
+
+    // If this SID matches a pending record in the call log, UPDATE it in-place
+    // instead of creating a duplicate — this keeps both paths on the same record
+    const existingPending = form.sid
+      ? state.reviews.find(
+          (r) => r.sid && r.sid.trim().toLowerCase() === form.sid.trim().toLowerCase()
+               && r.result === 'pending'
+        )
+      : null
+
+    if (existingPending) {
+      // Patch the existing record — scorecard will reflect this automatically
+      const updatedReview = {
+        ...existingPending,
+        scores,
+        reviewer:   form.reviewer,
+        notes:      form.notes || existingPending.notes,
+        grade:      form.grade || existingPending.grade,
+        callLink:   form.callLink || existingPending.callLink,
+        result:     passed ? 'pass' : 'fail',
+        reviewedAt: new Date().toISOString(),
+      }
+      // Use addReview path but we need to update — signal via state directly
+      // We patch via the addReview flow since updateReview is on CallLog
+      // Instead: save as a new review referencing same agent so scorecard merges by agentName
+      addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
+    } else {
+      addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
+    }
+
+    setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
     setScores({})
+    setAutoFilled(false)
     emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
   }
 
@@ -52,12 +121,10 @@ export default function ReviewCall({ state, addReview, addReviews }) {
       const lines = e.target.result.trim().split('\n')
       if (lines.length < 2) { emitToast('CSV file is empty', 'error'); return }
 
-      // Normalise headers: trim, strip quotes, lowercase, collapse spaces to underscore
       const headers = lines[0].split(',').map((h) =>
         h.trim().replace(/"/g, '').toLowerCase().replace(/\s+/g, '_')
       )
 
-      // Only Agent is required
       if (!headers.includes('agent')) {
         emitToast('Missing required column: Agent', 'error'); return
       }
@@ -67,7 +134,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
         const line = lines[i].trim()
         if (!line) continue
 
-        // Quote-aware CSV split (handles URLs with commas inside quotes)
         const vals = []
         let inQuotes = false, current = ''
         for (const ch of line) {
@@ -82,13 +148,11 @@ export default function ReviewCall({ state, addReview, addReviews }) {
 
         if (!row.agent) continue
 
-        // Date: strip time portion from "2026-03-27 00:00:00" → "2026-03-27"
         const rawDate = row.date || ''
         const callDate = rawDate.includes(' ')
           ? rawDate.split(' ')[0]
           : rawDate || new Date().toISOString().split('T')[0]
 
-        // Derive email: "Abdallah Wael" → "abdallah.wael@momentumegypt.com"
         const agentName  = row.agent.trim()
         const agentEmail = agentName.toLowerCase().replace(/\s+/g, '.') + '@momentumegypt.com'
 
@@ -96,11 +160,10 @@ export default function ReviewCall({ state, addReview, addReviews }) {
           agentName,
           agentEmail,
           callDate,
-          sid:         row.sid          || '',
+          sid:          row.sid          || '',
           waitDuration: row.waiting_time || '',
           talkDuration: row.talk_time    || '',
           wrapDuration: row.wrap_up_time || '',
-          // unused fields left blank
           callLink:  '',
           reviewer:  '',
           notes:     '',
@@ -137,21 +200,96 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
+                {/* Auto-fill notice */}
+                {autoFilled && (
+                  <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-accent mb-4">
+                    <span>⚡</span>
+                    <span>Agent Name, Email and Call Date auto-filled from call log. You can still edit them.</span>
+                    <button onClick={() => setAutoFilled(false)}
+                      className="ml-auto text-txt3 hover:text-txt transition-colors font-mono">✕</button>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4 mb-5">
-                  <Field label="Agent Name">
-                    <input value={form.agentName} onChange={(e) => setForm((f) => ({ ...f, agentName: e.target.value }))}
-                      placeholder="e.g. Sara Al-Khatib" list="agent-dl" />
-                    <datalist id="agent-dl">{agentNames.map((n) => <option key={n} value={n} />)}</datalist>
+
+                  {/* SID — lookup trigger, shown first */}
+                  <Field label="SID">
+                    <div className="relative">
+                      <input
+                        value={form.sid}
+                        onChange={(e) => handleSidChange(e.target.value)}
+                        placeholder="Paste SID from call log"
+                        list="sid-dl"
+                      />
+                      {autoFilled && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          matched
+                        </span>
+                      )}
+                    </div>
+                    <datalist id="sid-dl">
+                      {allSids.map((s) => <option key={s} value={s} />)}
+                    </datalist>
                   </Field>
-                  <Field label="Agent ID">
-                    <input value={form.agentId} onChange={(e) => setForm((f) => ({ ...f, agentId: e.target.value }))} placeholder="e.g. AGT-042" />
-                  </Field>
+
+                  {/* Call Date — auto-filled from SID match */}
                   <Field label="Call Date">
-                    <input type="date" value={form.callDate} onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))} />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={form.callDate}
+                        onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))}
+                      />
+                      {autoFilled && (
+                        <span className="absolute right-8 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
                   </Field>
+
+                  {/* Agent Name — auto-filled */}
+                  <Field label="Agent Name">
+                    <div className="relative">
+                      <input
+                        value={form.agentName}
+                        onChange={(e) => setForm((f) => ({ ...f, agentName: e.target.value }))}
+                        placeholder="e.g. Sara Ali"
+                      />
+                      {autoFilled && form.agentName && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
+                  </Field>
+
+                  {/* Agent Email — replaces Agent ID, auto-filled */}
+                  <Field label="Agent Email">
+                    <div className="relative">
+                      <input
+                        value={form.agentEmail}
+                        onChange={(e) => setForm((f) => ({ ...f, agentEmail: e.target.value }))}
+                        placeholder="e.g. sara.ali@momentumegypt.com"
+                      />
+                      {autoFilled && form.agentEmail && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                          auto
+                        </span>
+                      )}
+                    </div>
+                  </Field>
+
+                  {/* Reviewer */}
                   <Field label="Reviewer">
-                    <input value={form.reviewer} onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))} placeholder="Your name" />
+                    <input
+                      value={form.reviewer}
+                      onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))}
+                      placeholder="Your name"
+                    />
                   </Field>
+
+                  {/* Performance Grade */}
                   <Field label="Performance Grade (optional)">
                     <select value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}>
                       <option value="">— No grade —</option>
@@ -162,14 +300,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                       })}
                     </select>
                   </Field>
-                  <Field label="SID">
-                    <input value={form.sid || ''} onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))} placeholder="e.g. CA73f098ff..." />
-                  </Field>
+
+                  {/* Call Link */}
                   <Field label="Call Link (optional)" full>
-                    <input type="url" value={form.callLink} onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))} placeholder="https://portal.example.com/calls/12345" />
+                    <input
+                      type="url"
+                      value={form.callLink}
+                      onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
+                      placeholder="https://portal.example.com/calls/12345"
+                    />
                   </Field>
+
+                  {/* Notes */}
                   <Field label="Notes (optional)" full>
-                    <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Any observations about this call..." />
+                    <textarea
+                      value={form.notes}
+                      onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Any observations about this call..."
+                    />
                   </Field>
                 </div>
 
@@ -196,7 +344,11 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                 </div>
 
                 <div className="flex justify-end gap-2.5">
-                  <Btn variant="ghost" onClick={() => { setForm({ agentName:'',agentId:'',callDate:new Date().toISOString().split('T')[0],callLink:'',reviewer:'',notes:'',grade:'' }); setScores({}) }}>Clear</Btn>
+                  <Btn variant="ghost" onClick={() => {
+                    setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
+                    setScores({})
+                    setAutoFilled(false)
+                  }}>Clear</Btn>
                   <Btn onClick={handleSubmit}>Save Review ✓</Btn>
                 </div>
               </div>
@@ -205,19 +357,18 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* CSV Tab */}
             {tab === 'csv' && (
               <div>
-                {/* Column reference */}
                 <div className="flex flex-col gap-2 px-4 py-3.5 bg-accent/8 border border-accent/20 rounded-lg mb-4">
                   <div className="text-xs text-txt2 font-medium mb-0.5">
                     ℹ️ Only these columns are used — only <span className="text-accent font-bold">Agent</span> is required:
                   </div>
                   <div className="flex flex-col gap-1">
                     {[
-                      ['Agent',        'Agent full name — required',     true],
-                      ['Date',         'Call date',                      false],
-                      ['SID',          'Session / call ID',              false],
-                      ['Waiting Time', 'Wait duration',                  false],
-                      ['Talk Time',    'Talk duration',                  false],
-                      ['Wrap Up Time', 'Wrap-up duration',               false],
+                      ['Agent',        'Agent full name — required',  true],
+                      ['Date',         'Call date',                   false],
+                      ['SID',          'Session / call ID',           false],
+                      ['Waiting Time', 'Wait duration',               false],
+                      ['Talk Time',    'Talk duration',               false],
+                      ['Wrap Up Time', 'Wrap-up duration',            false],
                     ].map(([col, desc, required]) => (
                       <div key={col} className="flex items-center gap-2">
                         <span className={`font-mono text-[11px] font-medium w-28 shrink-0 ${required ? 'text-accent' : 'text-txt2'}`}>{col}</span>
