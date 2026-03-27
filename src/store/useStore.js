@@ -74,7 +74,7 @@ export function useStore() {
   const addReview = useCallback(
     (review) => {
       update((s) => {
-        const score = calcWeightedScore(review.scores, s.criteria)
+        const score = calcWeightedScore(review.scores || {}, s.criteria)
         const result = score === null
           ? (review.result ?? 'pending')
           : score >= 60 ? 'pass' : 'fail'
@@ -102,28 +102,24 @@ export function useStore() {
     [update]
   )
 
-  // Update an existing review in-place (used when scoring a pending call from Call Log)
+  // Patch an existing review in-place (used by CallLog + Review button)
   const updateReview = useCallback(
     (id, patches) => {
-      update((s) => {
-        const criteria = s.criteria
-        return {
-          ...s,
-          reviews: s.reviews.map((r) => {
-            if (r.id !== id) return r
-            const merged = { ...r, ...patches }
-            // Recalculate score and result if scores were updated
-            if (patches.scores !== undefined) {
-              const score = calcWeightedScore(merged.scores, criteria)
-              const result = score === null
-                ? (merged.result ?? 'pending')
-                : score >= 60 ? 'pass' : 'fail'
-              return { ...merged, score, result, reviewedAt: new Date().toISOString() }
-            }
-            return merged
-          }),
-        }
-      })
+      update((s) => ({
+        ...s,
+        reviews: s.reviews.map((r) => {
+          if (r.id !== id) return r
+          const merged = { ...r, ...patches }
+          if (patches.scores !== undefined) {
+            const score = calcWeightedScore(merged.scores, s.criteria)
+            const result = score === null
+              ? (merged.result ?? 'pending')
+              : score >= 60 ? 'pass' : 'fail'
+            return { ...merged, score, result, reviewedAt: new Date().toISOString() }
+          }
+          return merged
+        }),
+      }))
     },
     [update]
   )
@@ -145,7 +141,7 @@ export function useStore() {
         if (r.result === 'pass') s.pass++
         else s.fail++
         Object.values(r.scores || {}).forEach((val) => {
-          if (val === 'pass') s.attrPass++
+          if (val === 'pass' || val === 'na') s.attrPass++
           else if (val === 'fail') s.attrFail++
         })
       })
