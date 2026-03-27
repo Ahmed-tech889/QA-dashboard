@@ -35,24 +35,18 @@ function ScoreSummary({ scores, criteria }) {
       <div className="flex items-center justify-between mb-3">
         <div className="font-syne font-bold text-sm">Score Summary</div>
         <div className="flex items-center gap-2">
-          {score !== null && (
-            <span className="font-syne font-extrabold text-2xl leading-none" style={{ color }}>{score}%</span>
-          )}
+          {score !== null && <span className="font-syne font-extrabold text-2xl leading-none" style={{ color }}>{score}%</span>}
           {score !== null && (
             <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border"
               style={{ color, borderColor: color, background: isPassing ? 'rgba(0,212,170,0.1)' : 'rgba(255,107,107,0.1)' }}>
               {isPassing ? '✓ PASS' : '✗ FAIL'}
             </span>
           )}
-          {score === null && (
-            <span className="font-mono text-[11px] text-txt3">Score will appear as you score criteria</span>
-          )}
+          {score === null && <span className="font-mono text-[11px] text-txt3">Score will appear as you score criteria</span>}
         </div>
       </div>
       <div className="h-2 bg-surface3 rounded-full overflow-hidden mb-2 relative">
-        {score !== null && (
-          <div className="h-full rounded-full score-bar-fill" style={{ width: `${score}%`, background: color }} />
-        )}
+        {score !== null && <div className="h-full rounded-full score-bar-fill" style={{ width: `${score}%`, background: color }} />}
         <div className="absolute top-0 bottom-0 w-px bg-txt3/60" style={{ left: '60%' }} />
       </div>
       <div className="flex items-center justify-between text-[10px] font-mono text-txt3">
@@ -90,15 +84,11 @@ export default function ReviewCall({ state, addReview, addReviews }) {
   const handleCidPhoneChange = useCallback((value) => {
     setForm((f) => ({ ...f, cidPhone: value }))
     setAutoFilled(false)
-
     if (!value || value.trim().length < 3) return
-
     const match = state.reviews.find(
       (r) => (r.cidPhone || '').toLowerCase().trim() === value.toLowerCase().trim()
     )
-
     if (!match) return
-
     setForm((f) => ({
       ...f,
       cidPhone:   value,
@@ -118,7 +108,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     if (state.criteria.length > 0 && unscored.length > 0) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
-    addReview({ ...form })
+    addReview({ ...form, scores })
     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
     setScores({})
     setAutoFilled(false)
@@ -133,13 +123,22 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     reader.onload = (e) => {
       const lines = e.target.result.trim().split('\n')
       if (lines.length < 2) { emitToast('CSV file is empty', 'error'); return }
-      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/"/g, ''))
-      if (!headers.includes('agent')) { emitToast('Missing required column: agent', 'error'); return }
+
+      // Normalise headers: lowercase, trim, collapse spaces to underscore
+      const headers = lines[0].split(',').map((h) =>
+        h.trim().replace(/"/g, '').toLowerCase().replace(/\s+/g, '_')
+      )
+
+      if (!headers.includes('agent')) {
+        emitToast('Missing required column: Agent', 'error'); return
+      }
 
       const rows = []
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim()
         if (!line) continue
+
+        // Quote-aware split
         const vals = []
         let inQuotes = false, current = ''
         for (const ch of line) {
@@ -148,29 +147,46 @@ export default function ReviewCall({ state, addReview, addReviews }) {
           else { current += ch }
         }
         vals.push(current.trim())
+
         const row = {}
         headers.forEach((h, idx) => (row[h] = (vals[idx] || '').replace(/^"|"$/g, '').trim()))
+
         if (!row.agent) continue
-        const callDate = row.callanswered ? row.callanswered.split(' ')[0] : new Date().toISOString().split('T')[0]
-        const fmt = (s) => {
-          const n = parseInt(s, 10)
-          if (isNaN(n) || n < 0) return ''
-          const h = Math.floor(n / 3600), m = Math.floor((n % 3600) / 60), sec = n % 60
-          return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`
-        }
+
         rows.push({
-          agentName: deriveAgentName(row.agent), agentEmail: row.agent,
-          agentId: row.booking_id || '', cidPhone: row.cidphone || '',
-          srvcidPhone: row.srvcidphone || '', cidChat: row.cidchat || '',
-          bookingId: row.booking_id || '', requestType: row.request_type || '',
-          queue: row.queue || '',
-          talkDuration: fmt(row.talk_duration), waitDuration: fmt(row.wait_duration), wrapDuration: fmt(row.wrap_duration),
-          transferred: row.transfered === '1' ? 'Yes' : row.transfered === '' ? '' : 'No',
-          callDate, callAnswered: row.callanswered || '',
-          callWrapupStart: row.callwrapupstart || '', callWrapupEnd: row.callwrapupend || '',
-          callLink: '', reviewer: '', notes: '', scores: {}, result: 'pending',
+          // Identity
+          agentName:    deriveAgentName(row.agent),
+          agentEmail:   row.agent,
+          agentPhone:   row.agent_phone    || '',
+
+          // Call identifiers — '#' column → cidPhone (the lookup key)
+          cidPhone:     row['#']           || '',
+          customerPhone: row.customer_phone || '',
+          sid:          row.sid            || '',
+
+          // Call metadata
+          callDate:     row.date           || new Date().toISOString().split('T')[0],
+          callTime:     row.time           || '',
+          direction:    row.direction      || '',
+          queue:        row.queue          || '',
+          abandoned:    row.abandoned      || '',
+
+          // Durations (stored as-is from the file, e.g. "00:02:14")
+          waitDuration: row.waiting_time   || '',
+          ringDuration: row.ring_time      || '',
+          talkDuration: row.talk_time      || '',
+          holdDuration: row.hold_time      || '',
+          wrapDuration: row.wrap_up_time   || '',
+
+          // Standard fields
+          callLink:  '',
+          reviewer:  '',
+          notes:     '',
+          scores:    {},
+          result:    'pending',
         })
       }
+
       if (rows.length === 0) { emitToast('No valid rows found in CSV', 'error'); return }
       addReviews(rows)
       setCsvPreview(rows.length)
@@ -178,6 +194,25 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     }
     reader.readAsText(file)
   }
+
+  // CSV column reference matching the image
+  const CSV_COLUMNS = [
+    ['Date',          'Call date',                  false],
+    ['Time',          'Call time',                  false],
+    ['SID',           'Session / call ID',          false],
+    ['Direction',     'Inbound or outbound',        false],
+    ['Queue',         'Queue name',                 false],
+    ['#',             'Customer phone / CID — used for auto-fill', false],
+    ['Abandoned',     'Whether call was abandoned', false],
+    ['Customer Phone','Customer phone number',      false],
+    ['Agent',         'Agent email address',        true],
+    ['Agent Phone',   'Agent phone number',         false],
+    ['Waiting Time',  'Wait duration',              false],
+    ['Ring Time',     'Ring duration',              false],
+    ['Talk Time',     'Talk duration',              false],
+    ['Hold Time',     'Hold duration',              false],
+    ['Wrap Up Time',  'Wrap-up duration',           false],
+  ]
 
   return (
     <div className="p-8 animate-fadeIn">
@@ -200,8 +235,6 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
-
-                {/* Auto-fill notice */}
                 {autoFilled && (
                   <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-accent mb-4">
                     <span>⚡</span>
@@ -212,101 +245,51 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mb-5">
-
-                  {/* CID / Phone — the lookup trigger */}
-                  <Field label="CID / Phone">
+                  <Field label="CID / Phone (#)">
                     <div className="relative">
-                      <input
-                        value={form.cidPhone}
-                        onChange={(e) => handleCidPhoneChange(e.target.value)}
-                        placeholder="e.g. +9715512345"
-                        list="cid-phone-dl"
-                      />
-                      {autoFilled && (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
-                          auto
-                        </span>
-                      )}
+                      <input value={form.cidPhone} onChange={(e) => handleCidPhoneChange(e.target.value)}
+                        placeholder="e.g. +9715512345" list="cid-phone-dl" />
+                      {autoFilled && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
-                    <datalist id="cid-phone-dl">
-                      {cidPhones.map((c) => <option key={c} value={c} />)}
-                    </datalist>
+                    <datalist id="cid-phone-dl">{cidPhones.map((c) => <option key={c} value={c} />)}</datalist>
                   </Field>
 
-                  {/* Booking ID — auto-filled, still editable */}
                   <Field label="Booking ID">
                     <div className="relative">
-                      <input
-                        value={form.bookingId}
-                        onChange={(e) => setForm((f) => ({ ...f, bookingId: e.target.value }))}
-                        placeholder="e.g. 295360242"
-                      />
-                      {autoFilled && form.bookingId && (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
-                          auto
-                        </span>
-                      )}
+                      <input value={form.bookingId} onChange={(e) => setForm((f) => ({ ...f, bookingId: e.target.value }))}
+                        placeholder="e.g. 295360242" />
+                      {autoFilled && form.bookingId && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
                   </Field>
 
-                  {/* Agent Name — auto-filled, still editable */}
                   <Field label="Agent Name">
                     <div className="relative">
-                      <input
-                        value={form.agentName}
-                        onChange={(e) => setForm((f) => ({ ...f, agentName: e.target.value }))}
-                        placeholder="e.g. Sara Ali"
-                      />
-                      {autoFilled && form.agentName && (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
-                          auto
-                        </span>
-                      )}
+                      <input value={form.agentName} onChange={(e) => setForm((f) => ({ ...f, agentName: e.target.value }))}
+                        placeholder="e.g. Sara Ali" />
+                      {autoFilled && form.agentName && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
                   </Field>
 
-                  {/* Agent Email — auto-filled, still editable */}
                   <Field label="Agent Email">
                     <div className="relative">
-                      <input
-                        value={form.agentEmail}
-                        onChange={(e) => setForm((f) => ({ ...f, agentEmail: e.target.value }))}
-                        placeholder="e.g. sara.ali@company.com"
-                      />
-                      {autoFilled && form.agentEmail && (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
-                          auto
-                        </span>
-                      )}
+                      <input value={form.agentEmail} onChange={(e) => setForm((f) => ({ ...f, agentEmail: e.target.value }))}
+                        placeholder="e.g. sara.ali@company.com" />
+                      {autoFilled && form.agentEmail && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
                   </Field>
 
-                  {/* Call Date — auto-filled, still editable */}
                   <Field label="Call Date">
                     <div className="relative">
-                      <input
-                        type="date"
-                        value={form.callDate}
-                        onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))}
-                      />
-                      {autoFilled && (
-                        <span className="absolute right-8 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
-                          auto
-                        </span>
-                      )}
+                      <input type="date" value={form.callDate} onChange={(e) => setForm((f) => ({ ...f, callDate: e.target.value }))} />
+                      {autoFilled && <span className="absolute right-8 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">auto</span>}
                     </div>
                   </Field>
 
-                  {/* Reviewer */}
                   <Field label="Reviewer">
-                    <input
-                      value={form.reviewer}
-                      onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))}
-                      placeholder="Your name"
-                    />
+                    <input value={form.reviewer} onChange={(e) => setForm((f) => ({ ...f, reviewer: e.target.value }))}
+                      placeholder="Your name" />
                   </Field>
 
-                  {/* Performance Grade */}
                   <Field label="Performance Grade (optional)">
                     <select value={form.grade} onChange={(e) => setForm((f) => ({ ...f, grade: e.target.value }))}>
                       <option value="">— No grade —</option>
@@ -318,23 +301,14 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                     </select>
                   </Field>
 
-                  {/* Call Link */}
                   <Field label="Call Link (optional)">
-                    <input
-                      type="url"
-                      value={form.callLink}
-                      onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
-                      placeholder="https://portal.example.com/calls/12345"
-                    />
+                    <input type="url" value={form.callLink} onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
+                      placeholder="https://portal.example.com/calls/12345" />
                   </Field>
 
-                  {/* Notes */}
                   <Field label="Notes (optional)" full>
-                    <textarea
-                      value={form.notes}
-                      onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                      placeholder="Any observations about this call..."
-                    />
+                    <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Any observations about this call..." />
                   </Field>
                 </div>
 
@@ -360,9 +334,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                                 <div className="text-[13px] font-medium">{c.name}</div>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {c.cat && <span className="font-mono text-[11px] text-txt3">{c.cat}</span>}
-                                  <span className="font-mono text-[10px] px-1.5 py-px rounded bg-surface3 border border-border text-txt3">
-                                    {c.weight ?? 100}%
-                                  </span>
+                                  <span className="font-mono text-[10px] px-1.5 py-px rounded bg-surface3 border border-border text-txt3">{c.weight ?? 100}%</span>
                                 </div>
                               </div>
                               <div className="flex gap-1.5">
@@ -393,32 +365,23 @@ export default function ReviewCall({ state, addReview, addReviews }) {
             {tab === 'csv' && (
               <div>
                 <div className="flex flex-col gap-2 px-4 py-3.5 bg-accent/8 border border-accent/20 rounded-lg mb-4">
-                  <div className="text-xs text-txt2 font-medium">ℹ️ Supported CSV columns — only <span className="text-accent font-bold">agent</span> is required:</div>
+                  <div className="text-xs text-txt2 font-medium mb-1">
+                    ℹ️ Supported CSV columns — only <span className="text-accent font-bold">Agent</span> is required:
+                  </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                    {[
-                      ['agent',         'Agent email — required'],
-                      ['cidPhone',      'Customer phone / CID'],
-                      ['booking_id',    'Booking or case ID'],
-                      ['request_type',  'Type of request'],
-                      ['queue',         'Queue / team'],
-                      ['callAnswered',  'Call timestamp (auto-extracts date)'],
-                      ['talk_duration', 'Talk time in seconds'],
-                      ['wait_duration', 'Wait time in seconds'],
-                      ['wrap_duration', 'Wrap-up time in seconds'],
-                      ['transfered',    '1 = transferred, blank = no'],
-                    ].map(([col, desc]) => (
+                    {CSV_COLUMNS.map(([col, desc, required]) => (
                       <div key={col} className="flex items-start gap-2">
-                        <span className={`font-mono text-[10px] font-medium shrink-0 ${col === 'agent' ? 'text-accent' : 'text-txt2'}`}>{col}</span>
+                        <span className={`font-mono text-[10px] font-medium shrink-0 ${required ? 'text-accent' : 'text-txt2'}`}>
+                          {col}
+                        </span>
                         <span className="text-txt3 text-[10px]">— {desc}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div
-                  onClick={() => fileRef.current?.click()}
-                  className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-all"
-                >
+                <div onClick={() => fileRef.current?.click()}
+                  className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
                   <div className="text-3xl mb-2.5">📂</div>
                   <div className="text-sm text-txt2 mb-1">Click to upload or drag & drop CSV</div>
                   <div className="font-mono text-[11px] text-txt3">calls-import.csv</div>
