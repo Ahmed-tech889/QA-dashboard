@@ -11,11 +11,11 @@ import { useStore } from './store/useStore'
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard',
-  review: 'Review Call',
-  calls: 'Call Log',
-  agents: 'Agents',
-  reports: 'Reports',
-  criteria: 'QA Criteria',
+  review:    'Review Call',
+  calls:     'Call Log',
+  agents:    'Agents',
+  reports:   'Reports',
+  criteria:  'QA Criteria',
 }
 
 export default function App() {
@@ -43,7 +43,12 @@ export default function App() {
           />
         )
       case 'calls':
-        return <CallLog state={store.state} />
+        return (
+          <CallLog
+            state={store.state}
+            updateReview={store.updateReview}
+          />
+        )
       case 'agents':
         return <Agents getAgentStats={store.getAgentStats} state={store.state} />
       case 'reports':
@@ -72,7 +77,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-bg text-txt font-dm">
       <Sidebar activePage={page} onNavigate={setPage} />
-
       <main className="ml-[220px] min-h-screen flex flex-col">
         <div className="sticky top-0 z-50 px-8 py-[18px] bg-surface border-b border-border flex items-center justify-between">
           <h1 className="font-syne font-bold text-[18px]">{PAGE_TITLES[page]}</h1>
@@ -81,12 +85,8 @@ export default function App() {
             <Btn onClick={() => setPage('review')}>+ New Review</Btn>
           </div>
         </div>
-
-        <div className="flex-1">
-          {renderPage()}
-        </div>
+        <div className="flex-1">{renderPage()}</div>
       </main>
-
       <ToastContainer />
     </div>
   )
