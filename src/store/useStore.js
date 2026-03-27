@@ -102,49 +102,58 @@ export function useStore() {
     [update]
   )
 
+  // Update an existing review in-place (used when scoring a pending call from Call Log)
+  const updateReview = useCallback(
+    (id, patches) => {
+      update((s) => {
+        const criteria = s.criteria
+        return {
+          ...s,
+          reviews: s.reviews.map((r) => {
+            if (r.id !== id) return r
+            const merged = { ...r, ...patches }
+            // Recalculate score and result if scores were updated
+            if (patches.scores !== undefined) {
+              const score = calcWeightedScore(merged.scores, criteria)
+              const result = score === null
+                ? (merged.result ?? 'pending')
+                : score >= 60 ? 'pass' : 'fail'
+              return { ...merged, score, result, reviewedAt: new Date().toISOString() }
+            }
+            return merged
+          }),
+        }
+      })
+    },
+    [update]
+  )
+
   const getAgentStats = useCallback(() => {
     const stats = {}
-
     state.reviews
       .filter((r) => r.result !== 'pending')
       .forEach((r) => {
         if (!stats[r.agentName]) {
           stats[r.agentName] = {
-            name: r.agentName,
-            id: r.agentId,
-            total: 0,
-            pass: 0,
-            fail: 0,
-            attrPass: 0,   // passed criteria attributes (N/A excluded)
-            attrFail: 0,   // failed criteria attributes (N/A excluded)
+            name: r.agentName, id: r.agentId,
+            total: 0, pass: 0, fail: 0,
+            attrPass: 0, attrFail: 0,
           }
         }
         const s = stats[r.agentName]
         s.total++
         if (r.result === 'pass') s.pass++
         else s.fail++
-
-        // tally individual criteria attribute verdicts
         Object.values(r.scores || {}).forEach((val) => {
           if (val === 'pass') s.attrPass++
           else if (val === 'fail') s.attrFail++
-          // na is excluded from both counts
         })
       })
-
     Object.values(stats).forEach((s) => {
-      // Pass Rate: passed calls / total scored calls
-      s.passRate = s.total > 0
-        ? Math.round((s.pass / s.total) * 100)
-        : 0
-
-      // Quality Score: passed attributes / (passed + failed attributes), N/A excluded
+      s.passRate = s.total > 0 ? Math.round((s.pass / s.total) * 100) : 0
       const totalAttr = s.attrPass + s.attrFail
-      s.qualityScore = totalAttr > 0
-        ? Math.round((s.attrPass / totalAttr) * 100)
-        : null
+      s.qualityScore = totalAttr > 0 ? Math.round((s.attrPass / totalAttr) * 100) : null
     })
-
     return stats
   }, [state.reviews])
 
@@ -154,12 +163,8 @@ export function useStore() {
     state.reviews.forEach((r) => {
       Object.entries(r.scores || {}).forEach(([cid, val]) => {
         if (rates[cid]) {
-          if (val === 'na') {
-            rates[cid].na++
-          } else {
-            rates[cid].total++
-            if (val === 'fail') rates[cid].fail++
-          }
+          if (val === 'na') rates[cid].na++
+          else { rates[cid].total++; if (val === 'fail') rates[cid].fail++ }
         }
       })
     })
@@ -187,6 +192,7 @@ export function useStore() {
     updateCriterionWeight,
     addReview,
     addReviews,
+    updateReview,
     getAgentStats,
     getCriteriaFailRates,
     getReviewerActivity,
