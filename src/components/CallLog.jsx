@@ -3,7 +3,16 @@ import { Badge, EmptyState, Modal, Panel, PanelHeader, Tag, Btn } from './ui'
 import { emitToast } from './ui'
 import { calcWeightedScore } from '../store/useStore'
 
-// ── Scoring modal for pending calls ──────────────────────────────────────────
+// Derive email from agentName if agentEmail is missing
+// "Sara Ali" → "sara.ali@momentumegypt.com"
+function deriveEmail(review) {
+  if (review.agentEmail) return review.agentEmail
+  if (!review.agentName) return ''
+  const parts = review.agentName.trim().toLowerCase().split(/\s+/)
+  return parts.join('.') + '@momentumegypt.com'
+}
+
+// ── Shared sub-components ────────────────────────────────────────────────────
 function PFButton({ label, selected, isPass, isNA, onClick }) {
   let style = ''
   if (selected) {
@@ -41,6 +50,7 @@ function InfoRow({ label, value, mono, full }) {
   )
 }
 
+// ── Scoring modal for pending calls ──────────────────────────────────────────
 function ReviewModal({ review, criteria, onSave, onClose }) {
   const [scores, setScores]     = useState({})
   const [reviewer, setReviewer] = useState('')
@@ -57,6 +67,8 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
     onSave({ scores, reviewer: reviewer.trim() })
   }
 
+  const email = deriveEmail(review)
+
   return (
     <Modal open onClose={onClose} title="Score This Call"
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn onClick={handleSave}>Save Review ✓</Btn></>}>
@@ -66,18 +78,17 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
         <div>
           <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest mb-0.5">Agent</div>
           <div className="font-semibold text-sm">{review.agentName}</div>
-          {review.agentEmail && <div className="font-mono text-[10px] text-txt3">{review.agentEmail}</div>}
+          <div className="font-mono text-[10px] text-accent mt-0.5">{email}</div>
         </div>
         <div>
-          <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest mb-0.5">Date / Time</div>
+          <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest mb-0.5">Call Date</div>
           <div className="text-sm">{review.callDate}{review.callTime ? ` · ${review.callTime}` : ''}</div>
         </div>
-        {review.cidPhone     && <InfoRow label="CID / Phone (#)" value={review.cidPhone} mono />}
-        {review.customerPhone && <InfoRow label="Customer Phone"  value={review.customerPhone} mono />}
-        {review.sid          && <InfoRow label="SID"             value={review.sid} mono />}
-        {review.queue        && <InfoRow label="Queue"           value={review.queue} />}
-        {review.direction    && <InfoRow label="Direction"       value={review.direction} />}
-        {review.abandoned    && <InfoRow label="Abandoned"       value={review.abandoned} />}
+        {review.sid         && <InfoRow label="SID"          value={review.sid} mono />}
+        {review.queue       && <InfoRow label="Queue"        value={review.queue} />}
+        {review.direction   && <InfoRow label="Direction"    value={review.direction} />}
+        {review.cidPhone    && <InfoRow label="CID / Phone"  value={review.cidPhone} mono />}
+        {review.customerPhone && <InfoRow label="Customer Phone" value={review.customerPhone} mono />}
       </div>
 
       {/* Duration pills */}
@@ -110,6 +121,7 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-txt3 inline-block" /> N/A</span>
             </div>
           </div>
+
           <div className="flex flex-col gap-2.5 mb-5">
             {criteria.map((c) => (
               <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-surface2 border border-border rounded-lg">
@@ -129,7 +141,7 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
             ))}
           </div>
 
-          {/* Live score */}
+          {/* Live score bar */}
           <div className={`rounded-xl border p-4 ${score === null ? 'bg-surface3/50 border-border' : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="font-mono text-[10px] uppercase tracking-widest text-txt3">Score Preview</span>
@@ -161,6 +173,7 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
 // ── Detail modal (read-only) ─────────────────────────────────────────────────
 function DetailModal({ review, criteria, onClose }) {
   if (!review) return null
+  const email = deriveEmail(review)
   const hasDurations = review.waitDuration || review.ringDuration || review.talkDuration || review.holdDuration || review.wrapDuration
 
   return (
@@ -171,7 +184,7 @@ function DetailModal({ review, criteria, onClose }) {
         <div>
           <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Agent</div>
           <div className="font-semibold text-sm">{review.agentName}</div>
-          {review.agentEmail && <div className="font-mono text-[11px] text-accent mt-0.5">{review.agentEmail}</div>}
+          <div className="font-mono text-[11px] text-accent mt-0.5">{email}</div>
           {review.agentPhone && <div className="font-mono text-[11px] text-txt3 mt-0.5">{review.agentPhone}</div>}
         </div>
         <div>
@@ -179,15 +192,16 @@ function DetailModal({ review, criteria, onClose }) {
           <Badge result={review.result} />
         </div>
 
-        <InfoRow label="Date"            value={review.callDate} />
+        <InfoRow label="Call Date"       value={review.callDate} />
         <InfoRow label="Time"            value={review.callTime} />
         <InfoRow label="SID"             value={review.sid} mono />
         <InfoRow label="Direction"       value={review.direction} />
         <InfoRow label="Queue"           value={review.queue} />
         <InfoRow label="Abandoned"       value={review.abandoned} />
-        <InfoRow label="CID / Phone (#)" value={review.cidPhone} mono />
+        <InfoRow label="CID / Phone"     value={review.cidPhone} mono />
         <InfoRow label="Customer Phone"  value={review.customerPhone} mono />
         {review.reviewer && <InfoRow label="Reviewer" value={review.reviewer} />}
+
         {review.callLink && (
           <div className="col-span-2">
             <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Call Link</div>
@@ -198,10 +212,12 @@ function DetailModal({ review, criteria, onClose }) {
           <div>
             <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Performance Grade</div>
             <div className="flex items-center gap-2">
-              <span className="font-syne font-bold text-xl" style={{ color: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }}>{review.grade}</span>
+              <span className="font-syne font-bold text-xl"
+                style={{ color: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }}>{review.grade}</span>
               <span className="text-txt3 text-sm font-mono">/ 10</span>
               <div className="flex-1 h-1.5 bg-surface3 rounded-full overflow-hidden ml-1">
-                <div className="h-full rounded-full score-bar-fill" style={{ width: `${review.grade * 10}%`, background: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }} />
+                <div className="h-full rounded-full score-bar-fill"
+                  style={{ width: `${review.grade * 10}%`, background: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }} />
               </div>
             </div>
           </div>
@@ -214,7 +230,6 @@ function DetailModal({ review, criteria, onClose }) {
         )}
       </div>
 
-      {/* Duration pills */}
       {hasDurations && (
         <div className="flex gap-2 flex-wrap mb-5">
           <DurationPill label="Wait"    value={review.waitDuration} />
@@ -225,7 +240,6 @@ function DetailModal({ review, criteria, onClose }) {
         </div>
       )}
 
-      {/* Criteria scores */}
       {criteria.length > 0 && (
         <>
           <div className="font-syne font-bold text-sm mb-3">Criteria Scores</div>
@@ -251,33 +265,26 @@ function DetailModal({ review, criteria, onClose }) {
 
 // ── Main CallLog ─────────────────────────────────────────────────────────────
 export default function CallLog({ state, updateReview }) {
-  const [search,            setSearch]            = useState('')
-  const [filterResult,      setFilterResult]      = useState('')
-  const [filterAgent,       setFilterAgent]       = useState('')
-  const [filterQueue,       setFilterQueue]       = useState('')
-  const [filterDirection,   setFilterDirection]   = useState('')
-  const [detail,            setDetail]            = useState(null)
-  const [reviewing,         setReviewing]         = useState(null)
+  const [search,       setSearch]       = useState('')
+  const [filterResult, setFilterResult] = useState('')
+  const [filterAgent,  setFilterAgent]  = useState('')
+  const [detail,       setDetail]       = useState(null)
+  const [reviewing,    setReviewing]    = useState(null)
 
-  const agents     = [...new Set(state.reviews.map((r) => r.agentName))].filter(Boolean).sort()
-  const queues     = [...new Set(state.reviews.map((r) => r.queue))].filter(Boolean).sort()
-  const directions = [...new Set(state.reviews.map((r) => r.direction))].filter(Boolean).sort()
+  const agents = [...new Set(state.reviews.map((r) => r.agentName))].filter(Boolean).sort()
 
   const filtered = state.reviews.filter((r) => {
     const s = search.toLowerCase()
+    const email = deriveEmail(r).toLowerCase()
     const matchSearch = !s
-      || (r.agentName    || '').toLowerCase().includes(s)
-      || (r.agentEmail   || '').toLowerCase().includes(s)
-      || (r.cidPhone     || '').toLowerCase().includes(s)
-      || (r.customerPhone|| '').toLowerCase().includes(s)
-      || (r.sid          || '').toLowerCase().includes(s)
-      || (r.queue        || '').toLowerCase().includes(s)
-      || (r.reviewer     || '').toLowerCase().includes(s)
-    const matchResult    = !filterResult    || r.result    === filterResult
-    const matchAgent     = !filterAgent     || r.agentName === filterAgent
-    const matchQueue     = !filterQueue     || r.queue     === filterQueue
-    const matchDirection = !filterDirection || r.direction === filterDirection
-    return matchSearch && matchResult && matchAgent && matchQueue && matchDirection
+      || (r.agentName  || '').toLowerCase().includes(s)
+      || email.includes(s)
+      || (r.sid        || '').toLowerCase().includes(s)
+      || (r.cidPhone   || '').toLowerCase().includes(s)
+      || (r.reviewer   || '').toLowerCase().includes(s)
+    const matchResult = !filterResult || r.result === filterResult
+    const matchAgent  = !filterAgent  || r.agentName === filterAgent
+    return matchSearch && matchResult && matchAgent
   })
 
   const handleSaveReview = (reviewId, patches) => {
@@ -294,32 +301,20 @@ export default function CallLog({ state, updateReview }) {
       <Panel className="mb-4">
         <div className="px-5 py-3.5 flex gap-3 items-center flex-wrap">
           <input
-            placeholder="🔍 Search agent, SID, CID, phone..."
+            placeholder="🔍 Search agent, email, SID..."
             value={search} onChange={(e) => setSearch(e.target.value)}
             className="flex-1 min-w-[220px]" style={{ width: 'auto' }}
           />
-          <select value={filterResult} onChange={(e) => setFilterResult(e.target.value)} style={{ width: 130 }}>
+          <select value={filterResult} onChange={(e) => setFilterResult(e.target.value)} style={{ width: 140 }}>
             <option value="">All Results</option>
             <option value="pass">Pass</option>
             <option value="fail">Fail</option>
             <option value="pending">Pending</option>
           </select>
-          <select value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)} style={{ width: 170 }}>
+          <select value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)} style={{ width: 180 }}>
             <option value="">All Agents</option>
             {agents.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
-          {queues.length > 0 && (
-            <select value={filterQueue} onChange={(e) => setFilterQueue(e.target.value)} style={{ width: 130 }}>
-              <option value="">All Queues</option>
-              {queues.map((q) => <option key={q} value={q}>{q}</option>)}
-            </select>
-          )}
-          {directions.length > 0 && (
-            <select value={filterDirection} onChange={(e) => setFilterDirection(e.target.value)} style={{ width: 130 }}>
-              <option value="">All Directions</option>
-              {directions.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          )}
         </div>
       </Panel>
 
@@ -333,63 +328,81 @@ export default function CallLog({ state, updateReview }) {
           : <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  {['Agent', 'Date / Time', 'SID', 'Queue', 'Direction', 'CID / Phone', 'Talk', 'Result', ''].map((h) => (
+                  {['Agent', 'Agent Email', 'Call Date', 'SID', 'Talk Time', 'Result', ''].map((h) => (
                     <th key={h} className="text-left font-mono text-[10px] tracking-widest uppercase text-txt3 px-4 py-2.5 border-b border-border bg-surface2">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id}
-                    onClick={() => r.result !== 'pending' && setDetail(r)}
-                    className={`border-b border-border/50 last:border-0 transition-colors ${r.result !== 'pending' ? 'hover:bg-white/[0.02] cursor-pointer' : ''}`}>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-[13px]">{r.agentName}</div>
-                      {r.agentEmail && <div className="font-mono text-[10px] text-txt3 mt-0.5">{r.agentEmail}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-txt2 whitespace-nowrap">
-                      <div>{r.callDate}</div>
-                      {r.callTime && <div className="font-mono text-[10px] text-txt3">{r.callTime}</div>}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-txt2">
-                      {r.sid || <span className="text-txt3">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-txt2">
-                      {r.queue || <span className="text-txt3">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-txt2">
-                      {r.direction || <span className="text-txt3">—</span>}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-txt2">
-                      {r.cidPhone || <span className="text-txt3">—</span>}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-txt2">
-                      {r.talkDuration || <span className="text-txt3">—</span>}
-                    </td>
-                    <td className="px-4 py-3"><Badge result={r.result} /></td>
-                    <td className="px-4 py-3">
-                      {r.result === 'pending' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setReviewing(r) }}
-                          className="px-3 py-1 rounded-lg text-[11px] font-medium font-dm cursor-pointer border transition-all bg-accent/10 text-accent border-accent/30 hover:bg-accent hover:text-white whitespace-nowrap">
-                          + Review
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((r) => {
+                  const email = deriveEmail(r)
+                  return (
+                    <tr key={r.id}
+                      onClick={() => r.result !== 'pending' && setDetail(r)}
+                      className={`border-b border-border/50 last:border-0 transition-colors ${r.result !== 'pending' ? 'hover:bg-white/[0.02] cursor-pointer' : ''}`}>
+
+                      {/* Agent name */}
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-[13px]">{r.agentName}</div>
+                      </td>
+
+                      {/* Agent email — derived if not stored */}
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-[11px] text-txt2">{email}</span>
+                      </td>
+
+                      {/* Call date */}
+                      <td className="px-4 py-3 text-[12px] text-txt2 whitespace-nowrap">
+                        {r.callDate}
+                      </td>
+
+                      {/* SID */}
+                      <td className="px-4 py-3 font-mono text-[11px] text-txt2">
+                        {r.sid || <span className="text-txt3">—</span>}
+                      </td>
+
+                      {/* Talk time */}
+                      <td className="px-4 py-3 font-mono text-[11px] text-txt2">
+                        {r.talkDuration || <span className="text-txt3">—</span>}
+                      </td>
+
+                      {/* Result */}
+                      <td className="px-4 py-3">
+                        <Badge result={r.result} />
+                      </td>
+
+                      {/* Review button for pending, empty for scored */}
+                      <td className="px-4 py-3">
+                        {r.result === 'pending' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setReviewing(r) }}
+                            className="px-3 py-1 rounded-lg text-[11px] font-medium font-dm cursor-pointer border transition-all bg-accent/10 text-accent border-accent/30 hover:bg-accent hover:text-white whitespace-nowrap">
+                            + Review
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
         }
       </Panel>
 
       {reviewing && (
-        <ReviewModal review={reviewing} criteria={state.criteria}
+        <ReviewModal
+          review={reviewing}
+          criteria={state.criteria}
           onSave={(patches) => handleSaveReview(reviewing.id, patches)}
-          onClose={() => setReviewing(null)} />
+          onClose={() => setReviewing(null)}
+        />
       )}
       {detail && (
-        <DetailModal review={detail} criteria={state.criteria} onClose={() => setDetail(null)} />
+        <DetailModal
+          review={detail}
+          criteria={state.criteria}
+          onClose={() => setDetail(null)}
+        />
       )}
     </div>
   )
