@@ -1,16 +1,22 @@
 import { useState, useRef, useCallback } from 'react'
 import { Btn, Field, Panel, PanelHeader } from './ui'
 import { emitToast } from './ui'
+import { calcWeightedScore } from '../store/useStore'
 
-function PFButton({ label, selected, onClick, isPass }) {
+function PFButton({ label, selected, onClick, isPass, isNA }) {
+  let style = ''
+  if (selected) {
+    if (isNA)        style = 'bg-txt3/15 text-txt2 border-txt3'
+    else if (isPass) style = 'bg-pass/15 text-pass border-pass'
+    else             style = 'bg-fail/15 text-fail border-fail'
+  } else {
+    style = 'bg-surface3 text-txt3 border-border hover:text-txt'
+  }
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-3.5 py-1 rounded-lg text-xs font-semibold font-mono cursor-pointer border transition-all
-        ${selected && isPass ? 'bg-pass/15 text-pass border-pass' :
-          selected && !isPass ? 'bg-fail/15 text-fail border-fail' :
-          'bg-surface3 text-txt3 border-border hover:text-txt'}`}
+      className={`px-3.5 py-1 rounded-lg text-xs font-semibold font-mono cursor-pointer border transition-all ${style}`}
     >
       {label}
     </button>
@@ -29,14 +35,12 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
   const [scores, setScores]         = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
   const [autoFilled, setAutoFilled] = useState(false)
-  // Track which existing pending record was matched so we can update it in-place
   const [matchedReviewId, setMatchedReviewId] = useState(null)
   const fileRef = useRef()
 
   const allSids = [...new Set(state.reviews.map((r) => r.sid).filter(Boolean))]
   const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
-  // SID lookup — auto-fills fields from a matching pending call log record
   const handleSidChange = useCallback((value) => {
     setForm((f) => ({ ...f, sid: value }))
     setAutoFilled(false)
@@ -64,7 +68,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
     }))
     setAutoFilled(true)
 
-    // Remember the matched record ID if it's still pending
     if (match.result === 'pending') {
       setMatchedReviewId(match.id)
     }
@@ -82,7 +85,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
       || state.criteria.every((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
 
     if (matchedReviewId !== null) {
-      // The SID matched a pending call log record — UPDATE it in-place, no duplicate
       updateReview(matchedReviewId, {
         scores,
         reviewer:   form.reviewer,
@@ -95,7 +97,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
       })
       emitToast(`Call updated — ${passed ? '✓ PASS' : '✗ FAIL'}`)
     } else {
-      // No matching pending record — create a new review entry
       addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
       emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
     }
@@ -172,6 +173,12 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
     reader.readAsText(file)
   }
 
+  // Live score calculation for the summary bar
+  const liveScore     = calcWeightedScore(scores, state.criteria)
+  const liveIsPassing = liveScore !== null && liveScore >= 60
+  const liveColor     = liveScore === null ? '#5a5a72' : liveIsPassing ? '#00d4aa' : '#ff6b6b'
+  const liveScoredCount = state.criteria.filter((c) => scores[c.id]).length
+
   return (
     <div className="p-8 animate-fadeIn">
       <div className="max-w-2xl">
@@ -202,7 +209,7 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                     <span>{matchedReviewId !== null ? '✓' : '⚡'}</span>
                     <span>
                       {matchedReviewId !== null
-                        ? 'Pending call found — saving will update this call\'s status directly, no duplicate will be created.'
+                        ? "Pending call found — saving will update this call's status directly, no duplicate will be created."
                         : 'Fields auto-filled from call log. You can still edit them.'}
                     </span>
                     <button onClick={() => { setAutoFilled(false); setMatchedReviewId(null) }}
@@ -211,7 +218,7 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mb-5">
-                  {/* SID — lookup trigger */}
+                  {/* SID */}
                   <Field label="SID">
                     <div className="relative">
                       <input
@@ -231,7 +238,7 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                     </datalist>
                   </Field>
 
-                  {/* Call Date — auto-filled */}
+                  {/* Call Date */}
                   <Field label="Call Date">
                     <div className="relative">
                       <input
@@ -247,7 +254,7 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                     </div>
                   </Field>
 
-                  {/* Agent Name — auto-filled */}
+                  {/* Agent Name */}
                   <Field label="Agent Name">
                     <div className="relative">
                       <input
@@ -263,7 +270,7 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                     </div>
                   </Field>
 
-                  {/* Agent Email — auto-filled */}
+                  {/* Agent Email */}
                   <Field label="Agent Email">
                     <div className="relative">
                       <input
@@ -320,25 +327,66 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                   </Field>
                 </div>
 
-                {/* Scoring */}
+                {/* Scoring — matches call log ReviewModal exactly */}
                 <div className="mb-5">
-                  <div className="font-syne font-bold text-sm mb-3.5">QA Criteria Scoring</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="font-syne font-bold text-sm">QA Criteria Scoring</div>
+                    {state.criteria.length > 0 && (
+                      <div className="flex items-center gap-3 font-mono text-[10px] text-txt3">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pass inline-block" /> Pass</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-fail inline-block" /> Fail</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-txt3 inline-block" /> N/A</span>
+                      </div>
+                    )}
+                  </div>
+
                   {state.criteria.length === 0
                     ? <div className="text-center py-6 text-txt3 text-sm">No criteria defined yet. Go to QA Criteria to add some.</div>
-                    : <div className="flex flex-col gap-2.5">
-                        {state.criteria.map((c) => (
-                          <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-surface2 border border-border rounded-lg">
-                            <div>
-                              <div className="text-[13px] font-medium">{c.name}</div>
-                              {c.cat && <div className="font-mono text-[11px] text-txt3">{c.cat}</div>}
+                    : <>
+                        <div className="flex flex-col gap-2.5 mb-5">
+                          {state.criteria.map((c) => (
+                            <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-surface2 border border-border rounded-lg">
+                              <div>
+                                <div className="text-[13px] font-medium">{c.name}</div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {c.cat && <span className="font-mono text-[11px] text-txt3">{c.cat}</span>}
+                                  <span className="font-mono text-[10px] px-1.5 py-px rounded bg-surface3 border border-border text-txt3">{c.weight ?? 100}%</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <PFButton label="✓ Pass" isPass selected={scores[c.id] === 'pass'} onClick={() => setScore(c.id, 'pass')} />
+                                <PFButton label="✗ Fail" isPass={false} selected={scores[c.id] === 'fail'} onClick={() => setScore(c.id, 'fail')} />
+                                <PFButton label="— N/A" isNA selected={scores[c.id] === 'na'} onClick={() => setScore(c.id, 'na')} />
+                              </div>
                             </div>
-                            <div className="flex gap-1.5">
-                              <PFButton label="✓ Pass" isPass selected={scores[c.id] === 'pass'} onClick={() => setScore(c.id, 'pass')} />
-                              <PFButton label="✗ Fail" isPass={false} selected={scores[c.id] === 'fail'} onClick={() => setScore(c.id, 'fail')} />
+                          ))}
+                        </div>
+
+                        {/* Live score bar */}
+                        <div className={`rounded-xl border p-4 ${liveScore === null ? 'bg-surface3/50 border-border' : liveIsPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-txt3">Score Preview</span>
+                            <div className="flex items-center gap-2">
+                              {liveScore !== null && <span className="font-syne font-extrabold text-xl" style={{ color: liveColor }}>{liveScore}%</span>}
+                              {liveScore !== null && (
+                                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                                  style={{ color: liveColor, borderColor: liveColor, background: liveIsPassing ? 'rgba(0,212,170,0.1)' : 'rgba(255,107,107,0.1)' }}>
+                                  {liveIsPassing ? '✓ PASS' : '✗ FAIL'}
+                                </span>
+                              )}
+                              {liveScore === null && <span className="font-mono text-[11px] text-txt3">Score criteria above</span>}
                             </div>
                           </div>
-                        ))}
-                      </div>
+                          <div className="h-1.5 bg-surface3 rounded-full overflow-hidden relative">
+                            {liveScore !== null && <div className="h-full rounded-full score-bar-fill" style={{ width: `${liveScore}%`, background: liveColor }} />}
+                            <div className="absolute top-0 bottom-0 w-px bg-txt3/50" style={{ left: '60%' }} />
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="font-mono text-[9px] text-txt3">{liveScoredCount}/{state.criteria.length} scored</span>
+                            <span className="font-mono text-[9px] text-txt3">Pass threshold: 60%</span>
+                          </div>
+                        </div>
+                      </>
                   }
                 </div>
 
