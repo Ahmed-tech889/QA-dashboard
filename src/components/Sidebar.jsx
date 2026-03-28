@@ -9,43 +9,72 @@ const NAV_ITEMS = [
 
 function QISLogo() {
   return (
-    <div className="px-5 py-5 border-b border-border">
-      <div className="flex flex-col items-center gap-2">
-        {/* Icon mark */}
-        <div className="relative w-10 h-10">
-          {/* Outer ring */}
-          <svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00c8ff" />
-                <stop offset="100%" stopColor="#1a6aff" />
-              </linearGradient>
-              <linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#00e5c0" />
-                <stop offset="100%" stopColor="#0090ff" />
-              </linearGradient>
-            </defs>
-            {/* Dashed orbit ring */}
-            <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(0,160,255,0.18)" strokeWidth="1" strokeDasharray="3 3" />
-            {/* Magnifying glass circle */}
-            <circle cx="17" cy="17" r="9.5" fill="none" stroke="url(#glassGrad)" strokeWidth="2.2" />
-            {/* Handle */}
-            <line x1="24" y1="24" x2="30" y2="30" stroke="url(#glassGrad)" strokeWidth="2.5" strokeLinecap="round" />
-            {/* Bar chart inside lens */}
-            <rect x="11.5" y="18" width="2.5" height="5"   rx="0.8" fill="url(#barGrad)" opacity="0.9" />
-            <rect x="15.5" y="15" width="2.5" height="8"   rx="0.8" fill="url(#barGrad)" />
-            <rect x="19.5" y="16.5" width="2.5" height="6.5" rx="0.8" fill="url(#barGrad)" opacity="0.85" />
-            {/* Checkmark */}
-            <path d="M11 17 L14 20 L20 13" fill="none" stroke="rgba(0,230,180,0.55)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
+    <div
+      className="px-5 py-5 border-b border-border relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #0d1628 0%, #111c36 60%, #0a1220 100%)',
+      }}
+    >
+      {/* Subtle glow behind icon */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-30px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '140px',
+          height: '80px',
+          background: 'radial-gradient(ellipse, rgba(0,120,255,0.12) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }}
+      />
 
-        {/* QIS wordmark */}
-        <div className="flex flex-col items-center leading-none">
-          <span
-            className="font-syne font-extrabold tracking-[6px] text-[18px]"
+      <div className="relative flex flex-col items-center gap-2.5">
+        {/* Icon + QIS on same row */}
+        <div className="flex items-center gap-3">
+          {/* Icon box */}
+          <div
             style={{
-              background: 'linear-gradient(180deg, #c8e8ff 0%, #60b0ff 50%, #1a6aff 100%)',
+              width: 40,
+              height: 40,
+              borderRadius: 11,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, rgba(0,120,255,0.25) 0%, rgba(0,60,180,0.38) 100%)',
+              border: '1px solid rgba(0,160,255,0.28)',
+              boxShadow: '0 0 16px rgba(0,100,255,0.18)',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="qis-ig" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00e5ff" />
+                  <stop offset="100%" stopColor="#1a6fff" />
+                </linearGradient>
+                <linearGradient id="qis-bg" x1="0%" y1="100%" x2="0%" y2="0%">
+                  <stop offset="0%" stopColor="#1a6fff" />
+                  <stop offset="100%" stopColor="#00e0c0" />
+                </linearGradient>
+              </defs>
+              <circle cx="12" cy="12" r="7.5" fill="none" stroke="url(#qis-ig)" strokeWidth="2.2" />
+              <line x1="17.8" y1="17.8" x2="24" y2="24" stroke="url(#qis-ig)" strokeWidth="2.4" strokeLinecap="round" />
+              <rect x="7.5"  y="14"   width="2.2" height="4"   rx="0.6" fill="url(#qis-bg)" />
+              <rect x="11"   y="11"   width="2.2" height="7"   rx="0.6" fill="url(#qis-bg)" />
+              <rect x="14.5" y="12.5" width="2.2" height="5.5" rx="0.6" fill="url(#qis-bg)" />
+            </svg>
+          </div>
+
+          {/* QIS wordmark */}
+          <span
+            style={{
+              fontFamily: "'Poppins', sans-serif",
+              fontWeight: 800,
+              fontSize: 28,
+              letterSpacing: 5,
+              lineHeight: 1,
+              background: 'linear-gradient(160deg, #ffffff 0%, #b8d8ff 40%, #5ca8ff 80%, #1a6fff 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -53,10 +82,30 @@ function QISLogo() {
           >
             QIS
           </span>
-          <span className="font-mono text-[7px] tracking-[1.8px] uppercase text-txt3 mt-1">
-            Quality Intelligence System
-          </span>
         </div>
+
+        {/* Divider */}
+        <div
+          style={{
+            width: '100%',
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(0,160,255,0.3), transparent)',
+          }}
+        />
+
+        {/* Tagline */}
+        <span
+          style={{
+            fontFamily: "'Poppins', sans-serif",
+            fontWeight: 400,
+            fontSize: 7.5,
+            letterSpacing: 2.5,
+            textTransform: 'uppercase',
+            color: 'rgba(140,190,255,0.5)',
+          }}
+        >
+          Quality Intelligence System
+        </span>
       </div>
     </div>
   )
