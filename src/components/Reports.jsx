@@ -1,21 +1,45 @@
 import { useState, useMemo } from 'react'
 import { AttrBar, Badge, EmptyState, Panel, PanelHeader, Tag } from './ui'
 
-const DATE_RANGES = [
-  { label: 'Last 7 days',   days: 7 },
-  { label: 'Last 30 days',  days: 30 },
-  { label: 'Last 90 days',  days: 90 },
-  { label: 'Last 6 months', days: 180 },
-  { label: 'Last year',     days: 365 },
-  { label: 'All time',      days: null },
-]
-
 function StatCard({ label, value, color, accent }) {
   return (
     <div className="bg-surface border border-border rounded-xl p-5 relative overflow-hidden">
       <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${accent} to-transparent`} />
       <div className="font-mono text-[11px] tracking-widest uppercase text-txt3 mb-2.5">{label}</div>
       <div className="font-syne font-extrabold text-[32px] leading-none" style={color ? { color } : {}}>{value}</div>
+    </div>
+  )
+}
+
+function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
+        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">From</label>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => onFromChange(e.target.value)}
+          style={{ width: 150 }}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">To</label>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => onToChange(e.target.value)}
+          style={{ width: 150 }}
+        />
+      </div>
+      {(from || to) && (
+        <button
+          onClick={onClear}
+          className="px-3 py-1.5 rounded-lg text-[11px] font-mono cursor-pointer border transition-all bg-surface2 text-txt3 border-border hover:text-txt"
+        >
+          Clear
+        </button>
+      )}
     </div>
   )
 }
@@ -137,16 +161,17 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
 }
 
 export default function Reports({ state, getAgentStats, getCriteriaFailRates, getReviewerActivity }) {
-  const [rangeDays, setRangeDays] = useState(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo,   setDateTo]   = useState('')
 
   const filteredReviews = useMemo(() => {
-    if (!rangeDays) return state.reviews
-    const cutoff = new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000)
     return state.reviews.filter((r) => {
       const d = new Date(r.callDate || r.reviewedAt)
-      return d >= cutoff
+      if (dateFrom && d < new Date(dateFrom)) return false
+      if (dateTo   && d > new Date(dateTo + 'T23:59:59')) return false
+      return true
     })
-  }, [state.reviews, rangeDays])
+  }, [state.reviews, dateFrom, dateTo])
 
   const scored   = filteredReviews.filter((r) => r.result !== 'pending')
   const passes   = scored.filter((r) => r.result === 'pass').length
@@ -154,7 +179,6 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
   const passRate = scored.length ? Math.round((passes / scored.length) * 100) : null
   const failRate = scored.length ? Math.round((fails  / scored.length) * 100) : null
 
-  // Compute agent stats, criteria fail rates, reviewer activity from filtered reviews only
   const agentStats = useMemo(() => {
     const stats = {}
     filteredReviews.filter((r) => r.result !== 'pending').forEach((r) => {
@@ -194,7 +218,9 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
     return Object.values(r).sort((a, b) => b.total - a.total)
   }, [filteredReviews])
 
-  const rangeLabel = DATE_RANGES.find((r) => r.days === rangeDays)?.label ?? 'All time'
+  const rangeLabel = dateFrom || dateTo
+    ? `${dateFrom || '…'} → ${dateTo || '…'}`
+    : 'All time'
   const exportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
   const handleExportPDF = () => {
@@ -205,24 +231,17 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
     <div className="p-8 animate-fadeIn">
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-1.5 flex-wrap">
-          {DATE_RANGES.map((r) => (
-            <button
-              key={r.label}
-              onClick={() => setRangeDays(r.days)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-mono cursor-pointer border transition-all
-                ${rangeDays === r.days
-                  ? 'bg-accent text-white border-accent'
-                  : 'bg-surface2 text-txt3 border-border hover:text-txt'}`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          onClear={() => { setDateFrom(''); setDateTo('') }}
+        />
         <button
           onClick={handleExportPDF}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface2 border border-border text-txt2 hover:text-txt hover:border-accent/40 cursor-pointer transition-all text-[13px] font-medium shrink-0 ml-4"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface2 border border-border text-txt2 hover:text-txt hover:border-accent/40 cursor-pointer transition-all text-[13px] font-medium shrink-0"
         >
           ⬇ Export PDF
         </button>
