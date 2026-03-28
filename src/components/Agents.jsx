@@ -16,7 +16,7 @@ const IMPROVEMENT_TIPS = {
   'resolution':    'Use the knowledge base more actively during calls; escalate unresolved cases within 5 min.',
   'empathy':       'Use active listening phrases (e.g. "I understand how frustrating this is") consistently.',
   'hold':          'Inform customers before placing on hold and check back every 60 seconds.',
-  'closing':       'Summarise next steps clearly before ending each call.',
+  'closing':       'Summarise next steps clearly before ending each call and mention the brand closure.',
   'documentation': 'Complete call notes immediately after each interaction while details are fresh.',
   'default':       'Review recorded calls with your team lead to identify specific areas for improvement.',
 }
