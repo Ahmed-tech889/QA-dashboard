@@ -15,8 +15,8 @@ export default function Sidebar({ activePage, onNavigate }) {
         <div className="flex items-center gap-2">
           <div className="w-[30px] h-[30px] rounded-lg bg-gradient-to-br from-accent to-accent3 grid place-items-center text-sm">📋</div>
           <div>
-            <div className="font-syne font-extrabold text-[15px] tracking-[-0.3px]">QA Center</div>
-            <div className="font-mono text-[9px] text-txt3 tracking-[1.5px] uppercase mt-0.5">Command Center</div>
+            <div className="font-syne font-extrabold text-[15px] tracking-[-0.3px]">QIS</div>
+            <div className="font-mono text-[9px] text-txt3 tracking-[1.5px] uppercase mt-0.5">Quality Intelligence System</div>
           </div>
         </div>
       </div>
