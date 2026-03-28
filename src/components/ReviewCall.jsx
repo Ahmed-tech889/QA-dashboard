@@ -81,8 +81,10 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
       emitToast('Please score all criteria before saving', 'error'); return
     }
 
-    const passed = state.criteria.length === 0
-      || state.criteria.every((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
+    // Use the same weighted score logic as the store — 60% threshold
+    const score  = calcWeightedScore(scores, state.criteria)
+    const result = score === null ? 'pass' : score >= 60 ? 'pass' : 'fail'
+    const passed = result === 'pass'
 
     if (matchedReviewId !== null) {
       updateReview(matchedReviewId, {
@@ -93,12 +95,12 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
         callLink:   form.callLink,
         agentName:  form.agentName,
         agentEmail: form.agentEmail,
-        result:     passed ? 'pass' : 'fail',
+        result,
       })
-      emitToast(`Call updated — ${passed ? '✓ PASS' : '✗ FAIL'}`)
+      emitToast(`Call updated — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
     } else {
-      addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
-      emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
+      addReview({ ...form, scores, result })
+      emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
     }
 
     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
