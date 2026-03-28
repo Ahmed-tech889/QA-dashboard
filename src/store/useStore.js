@@ -102,7 +102,7 @@ export function useStore() {
     [update]
   )
 
-  // Patch an existing review in-place (used by CallLog + Review button)
+  // Patch an existing review in-place — recalculates score/result if scores changed
   const updateReview = useCallback(
     (id, patches) => {
       update((s) => ({
@@ -120,6 +120,14 @@ export function useStore() {
           return merged
         }),
       }))
+    },
+    [update]
+  )
+
+  // Remove a review from the call log entirely
+  const deleteReview = useCallback(
+    (id) => {
+      update((s) => ({ ...s, reviews: s.reviews.filter((r) => r.id !== id) }))
     },
     [update]
   )
@@ -189,6 +197,7 @@ export function useStore() {
     addReview,
     addReviews,
     updateReview,
+    deleteReview,
     getAgentStats,
     getCriteriaFailRates,
     getReviewerActivity,
