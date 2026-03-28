@@ -4,12 +4,10 @@ import { emitToast } from './ui'
 import { calcWeightedScore } from '../store/useStore'
 
 // Derive email from agentName if agentEmail is missing
-// "Sara Ali" → "sara.ali@momentumegypt.com"
 function deriveEmail(review) {
   if (review.agentEmail) return review.agentEmail
   if (!review.agentName) return ''
-  const parts = review.agentName.trim().toLowerCase().split(/\s+/)
-  return parts.join('.') + '@momentumegypt.com'
+  return review.agentName.trim().toLowerCase().replace(/\s+/g, '.') + '@momentumegypt.com'
 }
 
 // ── Shared sub-components ────────────────────────────────────────────────────
@@ -40,10 +38,10 @@ function DurationPill({ label, value }) {
   )
 }
 
-function InfoRow({ label, value, mono, full }) {
+function InfoRow({ label, value, mono }) {
   if (!value) return null
   return (
-    <div className={full ? 'col-span-2' : ''}>
+    <div>
       <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">{label}</div>
       <div className={`text-sm ${mono ? 'font-mono' : ''}`}>{value}</div>
     </div>
@@ -84,20 +82,15 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
           <div className="font-mono text-[10px] text-txt3 uppercase tracking-widest mb-0.5">Call Date</div>
           <div className="text-sm">{review.callDate}{review.callTime ? ` · ${review.callTime}` : ''}</div>
         </div>
-        {review.sid         && <InfoRow label="SID"          value={review.sid} mono />}
-        {review.queue       && <InfoRow label="Queue"        value={review.queue} />}
-        {review.direction   && <InfoRow label="Direction"    value={review.direction} />}
-        {review.cidPhone    && <InfoRow label="CID / Phone"  value={review.cidPhone} mono />}
-        {review.customerPhone && <InfoRow label="Customer Phone" value={review.customerPhone} mono />}
+        {review.sid && <InfoRow label="SID" value={review.sid} mono />}
+        {review.queue && <InfoRow label="Queue" value={review.queue} />}
       </div>
 
       {/* Duration pills */}
-      {(review.waitDuration || review.ringDuration || review.talkDuration || review.holdDuration || review.wrapDuration) && (
+      {(review.waitDuration || review.talkDuration || review.wrapDuration) && (
         <div className="flex gap-2 flex-wrap mb-5">
           <DurationPill label="Wait"    value={review.waitDuration} />
-          <DurationPill label="Ring"    value={review.ringDuration} />
           <DurationPill label="Talk"    value={review.talkDuration} />
-          <DurationPill label="Hold"    value={review.holdDuration} />
           <DurationPill label="Wrap-up" value={review.wrapDuration} />
         </div>
       )}
@@ -121,7 +114,6 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-txt3 inline-block" /> N/A</span>
             </div>
           </div>
-
           <div className="flex flex-col gap-2.5 mb-5">
             {criteria.map((c) => (
               <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-surface2 border border-border rounded-lg">
@@ -141,7 +133,7 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
             ))}
           </div>
 
-          {/* Live score bar */}
+          {/* Live score */}
           <div className={`rounded-xl border p-4 ${score === null ? 'bg-surface3/50 border-border' : isPassing ? 'bg-pass/8 border-pass/20' : 'bg-fail/8 border-fail/20'}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="font-mono text-[10px] uppercase tracking-widest text-txt3">Score Preview</span>
@@ -174,7 +166,7 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
 function DetailModal({ review, criteria, onClose }) {
   if (!review) return null
   const email = deriveEmail(review)
-  const hasDurations = review.waitDuration || review.ringDuration || review.talkDuration || review.holdDuration || review.wrapDuration
+  const hasDurations = review.waitDuration || review.talkDuration || review.wrapDuration
 
   return (
     <Modal open title="Call Review Details" onClose={onClose}
@@ -185,43 +177,15 @@ function DetailModal({ review, criteria, onClose }) {
           <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Agent</div>
           <div className="font-semibold text-sm">{review.agentName}</div>
           <div className="font-mono text-[11px] text-accent mt-0.5">{email}</div>
-          {review.agentPhone && <div className="font-mono text-[11px] text-txt3 mt-0.5">{review.agentPhone}</div>}
         </div>
         <div>
           <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Result</div>
           <Badge result={review.result} />
         </div>
-
-        <InfoRow label="Call Date"       value={review.callDate} />
-        <InfoRow label="Time"            value={review.callTime} />
-        <InfoRow label="SID"             value={review.sid} mono />
-        <InfoRow label="Direction"       value={review.direction} />
-        <InfoRow label="Queue"           value={review.queue} />
-        <InfoRow label="Abandoned"       value={review.abandoned} />
-        <InfoRow label="CID / Phone"     value={review.cidPhone} mono />
-        <InfoRow label="Customer Phone"  value={review.customerPhone} mono />
-        {review.reviewer && <InfoRow label="Reviewer" value={review.reviewer} />}
-
-        {review.callLink && (
-          <div className="col-span-2">
-            <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Call Link</div>
-            <a href={review.callLink} target="_blank" rel="noreferrer" className="text-accent text-sm hover:underline break-all">{review.callLink}</a>
-          </div>
-        )}
-        {review.grade && (
-          <div>
-            <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Performance Grade</div>
-            <div className="flex items-center gap-2">
-              <span className="font-syne font-bold text-xl"
-                style={{ color: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }}>{review.grade}</span>
-              <span className="text-txt3 text-sm font-mono">/ 10</span>
-              <div className="flex-1 h-1.5 bg-surface3 rounded-full overflow-hidden ml-1">
-                <div className="h-full rounded-full score-bar-fill"
-                  style={{ width: `${review.grade * 10}%`, background: review.grade >= 8 ? '#00d4aa' : review.grade >= 5 ? '#ffa94d' : '#ff6b6b' }} />
-              </div>
-            </div>
-          </div>
-        )}
+        <InfoRow label="Call Date" value={review.callDate} />
+        <InfoRow label="SID"       value={review.sid} mono />
+        <InfoRow label="Queue"     value={review.queue} />
+        <InfoRow label="Reviewer"  value={review.reviewer} />
         {review.notes && (
           <div className="col-span-2">
             <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Notes</div>
@@ -233,9 +197,7 @@ function DetailModal({ review, criteria, onClose }) {
       {hasDurations && (
         <div className="flex gap-2 flex-wrap mb-5">
           <DurationPill label="Wait"    value={review.waitDuration} />
-          <DurationPill label="Ring"    value={review.ringDuration} />
           <DurationPill label="Talk"    value={review.talkDuration} />
-          <DurationPill label="Hold"    value={review.holdDuration} />
           <DurationPill label="Wrap-up" value={review.wrapDuration} />
         </div>
       )}
@@ -263,13 +225,37 @@ function DetailModal({ review, criteria, onClose }) {
   )
 }
 
+// ── Confirm delete modal ─────────────────────────────────────────────────────
+function ConfirmModal({ review, onConfirm, onClose }) {
+  if (!review) return null
+  return (
+    <Modal open onClose={onClose} title="Remove Call"
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn variant="danger" onClick={onConfirm}>Remove</Btn>
+        </>
+      }>
+      <p className="text-sm text-txt2 leading-relaxed">
+        Are you sure you want to remove this call from the log?
+        <br />
+        <span className="text-txt font-medium">{review.agentName}</span>
+        {review.sid && <span className="font-mono text-txt3 text-xs ml-2">{review.sid}</span>}
+        <br />
+        <span className="text-txt3 text-xs">This cannot be undone.</span>
+      </p>
+    </Modal>
+  )
+}
+
 // ── Main CallLog ─────────────────────────────────────────────────────────────
-export default function CallLog({ state, updateReview }) {
+export default function CallLog({ state, updateReview, deleteReview }) {
   const [search,       setSearch]       = useState('')
   const [filterResult, setFilterResult] = useState('')
   const [filterAgent,  setFilterAgent]  = useState('')
   const [detail,       setDetail]       = useState(null)
   const [reviewing,    setReviewing]    = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const agents = [...new Set(state.reviews.map((r) => r.agentName))].filter(Boolean).sort()
 
@@ -277,11 +263,10 @@ export default function CallLog({ state, updateReview }) {
     const s = search.toLowerCase()
     const email = deriveEmail(r).toLowerCase()
     const matchSearch = !s
-      || (r.agentName  || '').toLowerCase().includes(s)
+      || (r.agentName || '').toLowerCase().includes(s)
       || email.includes(s)
-      || (r.sid        || '').toLowerCase().includes(s)
-      || (r.cidPhone   || '').toLowerCase().includes(s)
-      || (r.reviewer   || '').toLowerCase().includes(s)
+      || (r.sid       || '').toLowerCase().includes(s)
+      || (r.reviewer  || '').toLowerCase().includes(s)
     const matchResult = !filterResult || r.result === filterResult
     const matchAgent  = !filterAgent  || r.agentName === filterAgent
     return matchSearch && matchResult && matchAgent
@@ -293,6 +278,13 @@ export default function CallLog({ state, updateReview }) {
     const score = calcWeightedScore(patches.scores, state.criteria)
     const passed = score === null ? true : score >= 60
     emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}${score !== null ? ` (${score}%)` : ''}`)
+  }
+
+  const handleDelete = () => {
+    if (!confirmDelete) return
+    deleteReview(confirmDelete.id)
+    setConfirmDelete(null)
+    emitToast('Call removed from log')
   }
 
   return (
@@ -339,47 +331,38 @@ export default function CallLog({ state, updateReview }) {
                   return (
                     <tr key={r.id}
                       onClick={() => r.result !== 'pending' && setDetail(r)}
-                      className={`border-b border-border/50 last:border-0 transition-colors ${r.result !== 'pending' ? 'hover:bg-white/[0.02] cursor-pointer' : ''}`}>
+                      className={`border-b border-border/50 last:border-0 transition-colors group ${r.result !== 'pending' ? 'hover:bg-white/[0.02] cursor-pointer' : ''}`}>
 
-                      {/* Agent name */}
                       <td className="px-4 py-3">
                         <div className="font-medium text-[13px]">{r.agentName}</div>
                       </td>
-
-                      {/* Agent email — derived if not stored */}
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-[11px] text-txt2">{email}</span>
-                      </td>
-
-                      {/* Call date */}
-                      <td className="px-4 py-3 text-[12px] text-txt2 whitespace-nowrap">
-                        {r.callDate}
-                      </td>
-
-                      {/* SID */}
-                      <td className="px-4 py-3 font-mono text-[11px] text-txt2">
+                      <td className="px-4 py-3 font-mono text-[11px] text-txt2">{email}</td>
+                      <td className="px-4 py-3 text-[12px] text-txt2 whitespace-nowrap">{r.callDate}</td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-txt2 max-w-[140px] truncate" title={r.sid}>
                         {r.sid || <span className="text-txt3">—</span>}
                       </td>
-
-                      {/* Talk time */}
                       <td className="px-4 py-3 font-mono text-[11px] text-txt2">
                         {r.talkDuration || <span className="text-txt3">—</span>}
                       </td>
+                      <td className="px-4 py-3"><Badge result={r.result} /></td>
 
-                      {/* Result */}
+                      {/* Action cell: Review button for pending, delete for all */}
                       <td className="px-4 py-3">
-                        <Badge result={r.result} />
-                      </td>
-
-                      {/* Review button for pending, empty for scored */}
-                      <td className="px-4 py-3">
-                        {r.result === 'pending' && (
+                        <div className="flex items-center gap-2 justify-end">
+                          {r.result === 'pending' && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setReviewing(r) }}
+                              className="px-3 py-1 rounded-lg text-[11px] font-medium font-dm cursor-pointer border transition-all bg-accent/10 text-accent border-accent/30 hover:bg-accent hover:text-white whitespace-nowrap">
+                              + Review
+                            </button>
+                          )}
                           <button
-                            onClick={(e) => { e.stopPropagation(); setReviewing(r) }}
-                            className="px-3 py-1 rounded-lg text-[11px] font-medium font-dm cursor-pointer border transition-all bg-accent/10 text-accent border-accent/30 hover:bg-accent hover:text-white whitespace-nowrap">
-                            + Review
+                            onClick={(e) => { e.stopPropagation(); setConfirmDelete(r) }}
+                            className="opacity-0 group-hover:opacity-100 px-2 py-1 rounded-lg text-[11px] font-medium font-dm cursor-pointer border transition-all bg-fail/8 text-fail border-fail/20 hover:bg-fail/20"
+                            title="Remove call">
+                            ✕
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -398,10 +381,13 @@ export default function CallLog({ state, updateReview }) {
         />
       )}
       {detail && (
-        <DetailModal
-          review={detail}
-          criteria={state.criteria}
-          onClose={() => setDetail(null)}
+        <DetailModal review={detail} criteria={state.criteria} onClose={() => setDetail(null)} />
+      )}
+      {confirmDelete && (
+        <ConfirmModal
+          review={confirmDelete}
+          onConfirm={handleDelete}
+          onClose={() => setConfirmDelete(null)}
         />
       )}
     </div>
