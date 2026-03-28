@@ -23,34 +23,33 @@ const EMPTY_FORM = {
   callLink: '', reviewer: '', notes: '', grade: '',
 }
 
-export default function ReviewCall({ state, addReview, addReviews }) {
+export default function ReviewCall({ state, addReview, addReviews, updateReview }) {
   const [tab, setTab]               = useState('manual')
   const [form, setForm]             = useState({ ...EMPTY_FORM })
   const [scores, setScores]         = useState({})
   const [csvPreview, setCsvPreview] = useState(null)
   const [autoFilled, setAutoFilled] = useState(false)
+  // Track which existing pending record was matched so we can update it in-place
+  const [matchedReviewId, setMatchedReviewId] = useState(null)
   const fileRef = useRef()
 
-  // All unique SIDs from imported call log records
   const allSids = [...new Set(state.reviews.map((r) => r.sid).filter(Boolean))]
-
   const setScore = (id, val) => setScores((s) => ({ ...s, [id]: val }))
 
-  // SID lookup — fires on every keystroke in the SID field
+  // SID lookup — auto-fills fields from a matching pending call log record
   const handleSidChange = useCallback((value) => {
     setForm((f) => ({ ...f, sid: value }))
     setAutoFilled(false)
+    setMatchedReviewId(null)
 
     const trimmed = value.trim()
     if (!trimmed) return
 
-    // Find any call log record with this SID (exact match)
     const match = state.reviews.find(
       (r) => r.sid && r.sid.trim().toLowerCase() === trimmed.toLowerCase()
     )
     if (!match) return
 
-    // Auto-fill agent name, agent email, call date from the matched record
     const derivedEmail = match.agentEmail
       || (match.agentName
         ? match.agentName.trim().toLowerCase().replace(/\s+/g, '.') + '@momentumegypt.com'
@@ -59,11 +58,16 @@ export default function ReviewCall({ state, addReview, addReviews }) {
     setForm((f) => ({
       ...f,
       sid:        trimmed,
-      agentName:  match.agentName  || f.agentName,
-      agentEmail: derivedEmail     || f.agentEmail,
-      callDate:   match.callDate   || f.callDate,
+      agentName:  match.agentName || f.agentName,
+      agentEmail: derivedEmail    || f.agentEmail,
+      callDate:   match.callDate  || f.callDate,
     }))
     setAutoFilled(true)
+
+    // Remember the matched record ID if it's still pending
+    if (match.result === 'pending') {
+      setMatchedReviewId(match.id)
+    }
   }, [state.reviews])
 
   const handleSubmit = () => {
@@ -74,44 +78,32 @@ export default function ReviewCall({ state, addReview, addReviews }) {
       emitToast('Please score all criteria before saving', 'error'); return
     }
 
-    const totalScored = Object.keys(scores).length
-    const passed = totalScored === 0
-      ? true
-      : state.criteria.every((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
+    const passed = state.criteria.length === 0
+      || state.criteria.every((c) => scores[c.id] === 'pass' || scores[c.id] === 'na')
 
-    // If this SID matches a pending record in the call log, UPDATE it in-place
-    // instead of creating a duplicate — this keeps both paths on the same record
-    const existingPending = form.sid
-      ? state.reviews.find(
-          (r) => r.sid && r.sid.trim().toLowerCase() === form.sid.trim().toLowerCase()
-               && r.result === 'pending'
-        )
-      : null
-
-    if (existingPending) {
-      // Patch the existing record — scorecard will reflect this automatically
-      const updatedReview = {
-        ...existingPending,
+    if (matchedReviewId !== null) {
+      // The SID matched a pending call log record — UPDATE it in-place, no duplicate
+      updateReview(matchedReviewId, {
         scores,
         reviewer:   form.reviewer,
-        notes:      form.notes || existingPending.notes,
-        grade:      form.grade || existingPending.grade,
-        callLink:   form.callLink || existingPending.callLink,
+        notes:      form.notes,
+        grade:      form.grade,
+        callLink:   form.callLink,
+        agentName:  form.agentName,
+        agentEmail: form.agentEmail,
         result:     passed ? 'pass' : 'fail',
-        reviewedAt: new Date().toISOString(),
-      }
-      // Use addReview path but we need to update — signal via state directly
-      // We patch via the addReview flow since updateReview is on CallLog
-      // Instead: save as a new review referencing same agent so scorecard merges by agentName
-      addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
+      })
+      emitToast(`Call updated — ${passed ? '✓ PASS' : '✗ FAIL'}`)
     } else {
+      // No matching pending record — create a new review entry
       addReview({ ...form, scores, result: passed ? 'pass' : 'fail' })
+      emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
     }
 
     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
     setScores({})
     setAutoFilled(false)
-    emitToast(`Review saved — ${passed ? '✓ PASS' : '✗ FAIL'}`)
+    setMatchedReviewId(null)
   }
 
   const handleCSV = (file) => {
@@ -202,17 +194,24 @@ export default function ReviewCall({ state, addReview, addReviews }) {
               <div>
                 {/* Auto-fill notice */}
                 {autoFilled && (
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 bg-accent/8 border border-accent/20 rounded-lg text-xs text-accent mb-4">
-                    <span>⚡</span>
-                    <span>Agent Name, Email and Call Date auto-filled from call log. You can still edit them.</span>
-                    <button onClick={() => setAutoFilled(false)}
+                  <div className={`flex items-center gap-2 px-3.5 py-2.5 border rounded-lg text-xs mb-4 ${
+                    matchedReviewId !== null
+                      ? 'bg-pass/8 border-pass/20 text-pass'
+                      : 'bg-accent/8 border-accent/20 text-accent'
+                  }`}>
+                    <span>{matchedReviewId !== null ? '✓' : '⚡'}</span>
+                    <span>
+                      {matchedReviewId !== null
+                        ? 'Pending call found — saving will update this call\'s status directly, no duplicate will be created.'
+                        : 'Fields auto-filled from call log. You can still edit them.'}
+                    </span>
+                    <button onClick={() => { setAutoFilled(false); setMatchedReviewId(null) }}
                       className="ml-auto text-txt3 hover:text-txt transition-colors font-mono">✕</button>
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mb-5">
-
-                  {/* SID — lookup trigger, shown first */}
+                  {/* SID — lookup trigger */}
                   <Field label="SID">
                     <div className="relative">
                       <input
@@ -221,8 +220,8 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                         placeholder="Paste SID from call log"
                         list="sid-dl"
                       />
-                      {autoFilled && (
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-accent font-mono text-[9px] uppercase tracking-widest pointer-events-none">
+                      {matchedReviewId !== null && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-pass font-mono text-[9px] uppercase tracking-widest pointer-events-none">
                           matched
                         </span>
                       )}
@@ -232,7 +231,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                     </datalist>
                   </Field>
 
-                  {/* Call Date — auto-filled from SID match */}
+                  {/* Call Date — auto-filled */}
                   <Field label="Call Date">
                     <div className="relative">
                       <input
@@ -264,7 +263,7 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                     </div>
                   </Field>
 
-                  {/* Agent Email — replaces Agent ID, auto-filled */}
+                  {/* Agent Email — auto-filled */}
                   <Field label="Agent Email">
                     <div className="relative">
                       <input
@@ -348,8 +347,11 @@ export default function ReviewCall({ state, addReview, addReviews }) {
                     setForm({ ...EMPTY_FORM, callDate: new Date().toISOString().split('T')[0] })
                     setScores({})
                     setAutoFilled(false)
+                    setMatchedReviewId(null)
                   }}>Clear</Btn>
-                  <Btn onClick={handleSubmit}>Save Review ✓</Btn>
+                  <Btn onClick={handleSubmit}>
+                    {matchedReviewId !== null ? 'Update Call ✓' : 'Save Review ✓'}
+                  </Btn>
                 </div>
               </div>
             )}
