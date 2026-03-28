@@ -40,6 +40,7 @@ export default function App() {
             state={store.state}
             addReview={store.addReview}
             addReviews={store.addReviews}
+            updateReview={store.updateReview}
           />
         )
       case 'calls':
@@ -47,15 +48,11 @@ export default function App() {
           <CallLog
             state={store.state}
             updateReview={store.updateReview}
+            deleteReview={store.deleteReview}
           />
         )
       case 'agents':
-        return (
-          <Agents
-            getAgentStats={store.getAgentStats}
-            state={store.state}
-          />
-        )
+        return <Agents getAgentStats={store.getAgentStats} state={store.state} />
       case 'reports':
         return (
           <Reports
