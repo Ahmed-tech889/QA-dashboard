@@ -10,15 +10,6 @@ const GRADIENTS = [
   'from-[#e879f9] to-[#a855f7]',
 ]
 
-const DATE_RANGES = [
-  { label: 'Last 7 days',   days: 7 },
-  { label: 'Last 30 days',  days: 30 },
-  { label: 'Last 90 days',  days: 90 },
-  { label: 'Last 6 months', days: 180 },
-  { label: 'Last year',     days: 365 },
-  { label: 'All time',      days: null },
-]
-
 const IMPROVEMENT_TIPS = {
   'greeting':      'Practice opening scripts daily and record yourself for self-review.',
   'compliance':    'Review compliance checklist before each shift; flag unclear policies to the team lead.',
@@ -38,7 +29,6 @@ function getTip(name) {
   return IMPROVEMENT_TIPS.default
 }
 
-// Quality Score: passed attributes / (passed + failed attributes) — N/A excluded
 function computeQualityScore(reviews) {
   let attrPass = 0, attrFail = 0
   reviews.forEach((r) => {
@@ -51,7 +41,6 @@ function computeQualityScore(reviews) {
   return total > 0 ? Math.round((attrPass / total) * 100) : null
 }
 
-// Pass Rate: passed calls / total scored calls
 function computePassRate(reviews) {
   const scored = reviews.filter((r) => r.result !== 'pending')
   if (scored.length === 0) return null
@@ -80,8 +69,40 @@ function MetricBar({ label, value, description }) {
   )
 }
 
-function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeDays }) {
-  const rangeLabel = DATE_RANGES.find((r) => r.days === rangeDays)?.label ?? 'All time'
+function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
+        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">From</label>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => onFromChange(e.target.value)}
+          style={{ width: 145 }}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">To</label>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => onToChange(e.target.value)}
+          style={{ width: 145 }}
+        />
+      </div>
+      {(from || to) && (
+        <button
+          onClick={onClear}
+          className="px-2.5 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all bg-surface2 text-txt3 border-border hover:text-txt"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  )
+}
+
+function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel }) {
   const exportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   const qsColor = qualityScore === null ? '#9ca3af' : qualityScore >= 60 ? '#059669' : '#dc2626'
   const prColor = passRate     === null ? '#9ca3af' : passRate     >= 60 ? '#059669' : '#dc2626'
@@ -122,8 +143,6 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
   </style>
 </head>
 <body>
-
-  <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #e5e7eb;padding-bottom:16px;margin-bottom:24px">
     <div>
       <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.4px">${agent.name}</div>
@@ -142,7 +161,6 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
     </div>
   </div>
 
-  <!-- Stat pills -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
     ${[['Total Calls', agentReviews.length, '#111'], ['Scored', scored.length, '#111'], ['Passed', passes, '#059669'], ['Failed', fails, '#dc2626']].map(([l, v, c]) => `
       <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#f9fafb">
@@ -151,7 +169,6 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
       </div>`).join('')}
   </div>
 
-  <!-- Metric bars -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px">
     <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -186,7 +203,6 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
     <span>QA Center — Agent Scorecard</span>
     <span>Generated: ${exportDate} · Period: ${rangeLabel}</span>
   </div>
-
 </body>
 </html>`
 
@@ -197,20 +213,19 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
 }
 
 function ScorecardModal({ agent, state, onClose }) {
-  const [rangeDays, setRangeDays] = useState(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo,   setDateTo]   = useState('')
 
   const agentReviews = useMemo(() => {
     if (!agent) return []
-    const cutoff = rangeDays ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000) : null
     return state.reviews.filter((r) => {
       if (r.agentName !== agent.name) return false
-      if (cutoff) {
-        const d = new Date(r.callDate || r.reviewedAt)
-        if (d < cutoff) return false
-      }
+      const d = new Date(r.callDate || r.reviewedAt)
+      if (dateFrom && d < new Date(dateFrom)) return false
+      if (dateTo   && d > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
-  }, [agent, state.reviews, rangeDays])
+  }, [agent, state.reviews, dateFrom, dateTo])
 
   const scored       = agentReviews.filter((r) => r.result !== 'pending')
   const passes       = scored.filter((r) => r.result === 'pass').length
@@ -237,11 +252,15 @@ function ScorecardModal({ agent, state, onClose }) {
   const mistakes  = mistakeMap.filter((m) => m.failRate > 0)
   const strengths = mistakeMap.filter((m) => m.failRate === 0)
 
+  const rangeLabel = dateFrom || dateTo
+    ? `${dateFrom || '…'} → ${dateTo || '…'}`
+    : 'All time'
+
   const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
   const gradientIndex = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
 
   const handleExport = () =>
-    exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeDays })
+    exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel })
 
   return (
     <Modal open onClose={onClose} title="">
@@ -255,7 +274,6 @@ function ScorecardModal({ agent, state, onClose }) {
           <div className="font-mono text-[11px] text-txt3">{agent.id || 'No ID'} · Agent Scorecard</div>
         </div>
 
-        {/* Two metrics */}
         <div className="flex items-center gap-4 shrink-0">
           <div className="text-center">
             <div className="font-syne font-extrabold text-[28px] leading-none"
@@ -277,17 +295,13 @@ function ScorecardModal({ agent, state, onClose }) {
 
       {/* Date range + Export */}
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-        <div className="flex gap-1.5 flex-wrap">
-          {DATE_RANGES.map((r) => (
-            <button key={r.label} onClick={() => setRangeDays(r.days)}
-              className={`px-3 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all
-                ${rangeDays === r.days
-                  ? 'bg-accent text-white border-accent'
-                  : 'bg-surface2 text-txt3 border-border hover:text-txt'}`}>
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <DateRangeFilter
+          from={dateFrom}
+          to={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+          onClear={() => { setDateFrom(''); setDateTo('') }}
+        />
         <button onClick={handleExport}
           className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40 shrink-0">
           ⬇ Export PDF
@@ -310,7 +324,6 @@ function ScorecardModal({ agent, state, onClose }) {
         <div className="text-center py-8 text-txt3 text-sm">No reviews found for this period.</div>
       ) : (
         <>
-          {/* Metric bars side by side */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <MetricBar
               label="Quality Score"
@@ -324,7 +337,6 @@ function ScorecardModal({ agent, state, onClose }) {
             />
           </div>
 
-          {/* Most Common Mistakes */}
           <div className="mb-5">
             <div className="font-syne font-bold text-sm mb-3 flex items-center gap-2">
               ⚠️ Most Common Mistakes
@@ -364,7 +376,6 @@ function ScorecardModal({ agent, state, onClose }) {
             )}
           </div>
 
-          {/* Improvement Opportunities */}
           {mistakes.length > 0 && (
             <div className="mb-5">
               <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
@@ -382,7 +393,6 @@ function ScorecardModal({ agent, state, onClose }) {
             </div>
           )}
 
-          {/* Strengths */}
           {strengths.length > 0 && (
             <div>
               <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
@@ -421,7 +431,6 @@ function AgentCard({ agent, index, onClick }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        {/* Quality Score */}
         <div className="flex justify-between items-center text-xs">
           <span className="text-txt3">Quality Score</span>
           <span className="font-mono font-bold" style={{ color: qsColor }}>
@@ -433,7 +442,6 @@ function AgentCard({ agent, index, onClick }) {
             style={{ width: `${agent.qualityScore ?? 0}%`, background: qsColor }} />
         </div>
 
-        {/* Pass Rate */}
         <div className="flex justify-between items-center text-xs mt-1">
           <span className="text-txt3">Pass Rate</span>
           <span className="font-mono font-bold" style={{ color: prColor }}>{agent.passRate}%</span>
