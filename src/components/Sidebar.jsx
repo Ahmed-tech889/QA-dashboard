@@ -7,19 +7,65 @@ const NAV_ITEMS = [
   { id: 'criteria', icon: '⚙️', label: 'QA Criteria', section: 'Config' },
 ]
 
+function QISLogo() {
+  return (
+    <div className="px-5 py-5 border-b border-border">
+      <div className="flex flex-col items-center gap-2">
+        {/* Icon mark */}
+        <div className="relative w-10 h-10">
+          {/* Outer ring */}
+          <svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="glassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#00c8ff" />
+                <stop offset="100%" stopColor="#1a6aff" />
+              </linearGradient>
+              <linearGradient id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#00e5c0" />
+                <stop offset="100%" stopColor="#0090ff" />
+              </linearGradient>
+            </defs>
+            {/* Dashed orbit ring */}
+            <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(0,160,255,0.18)" strokeWidth="1" strokeDasharray="3 3" />
+            {/* Magnifying glass circle */}
+            <circle cx="17" cy="17" r="9.5" fill="none" stroke="url(#glassGrad)" strokeWidth="2.2" />
+            {/* Handle */}
+            <line x1="24" y1="24" x2="30" y2="30" stroke="url(#glassGrad)" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Bar chart inside lens */}
+            <rect x="11.5" y="18" width="2.5" height="5"   rx="0.8" fill="url(#barGrad)" opacity="0.9" />
+            <rect x="15.5" y="15" width="2.5" height="8"   rx="0.8" fill="url(#barGrad)" />
+            <rect x="19.5" y="16.5" width="2.5" height="6.5" rx="0.8" fill="url(#barGrad)" opacity="0.85" />
+            {/* Checkmark */}
+            <path d="M11 17 L14 20 L20 13" fill="none" stroke="rgba(0,230,180,0.55)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+
+        {/* QIS wordmark */}
+        <div className="flex flex-col items-center leading-none">
+          <span
+            className="font-syne font-extrabold tracking-[6px] text-[18px]"
+            style={{
+              background: 'linear-gradient(180deg, #c8e8ff 0%, #60b0ff 50%, #1a6aff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            QIS
+          </span>
+          <span className="font-mono text-[7px] tracking-[1.8px] uppercase text-txt3 mt-1">
+            Quality Intelligence System
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Sidebar({ activePage, onNavigate }) {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[220px] bg-surface border-r border-border flex flex-col z-[100]">
-      {/* Logo */}
-      <div className="px-5 py-6 border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-[30px] h-[30px] rounded-lg bg-gradient-to-br from-accent to-accent3 grid place-items-center text-sm">📋</div>
-          <div>
-            <div className="font-syne font-extrabold text-[15px] tracking-[-0.3px]">QIS</div>
-            <div className="font-mono text-[9px] text-txt3 tracking-[1.5px] uppercase mt-0.5">Quality Intelligence System</div>
-          </div>
-        </div>
-      </div>
+      <QISLogo />
 
       {/* Nav */}
       <nav className="flex-1 p-3">
