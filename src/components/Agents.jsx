@@ -10,23 +10,71 @@ const GRADIENTS = [
   'from-[#e879f9] to-[#a855f7]',
 ]
 
-const IMPROVEMENT_TIPS = {
-  'greeting':      'Practice opening scripts daily and record yourself for self-review.',
-  'compliance':    'Review compliance checklist before each shift; flag unclear policies to the team lead.',
-  'resolution':    'Use the knowledge base more actively during calls; escalate unresolved cases within 5 min.',
-  'empathy':       'Use active listening phrases (e.g. "I understand how frustrating this is") consistently.',
-  'hold':          'Inform customers before placing on hold and check back every 60 seconds.',
-  'closing':       'Summarise next steps clearly before ending each call and mention the brand closure.',
-  'documentation': 'Complete call notes immediately after each interaction while details are fresh.',
-  'default':       'Review recorded calls with your team lead to identify specific areas for improvement.',
-}
+const IMPROVEMENT_TIPS = [
+  {
+    match: 'did the agent introduce the brand, their name, and offer help',
+    tip: 'The agent should open the call with a proper greeting, clearly introduce the brand and their name, and proactively offer assistance to set a professional tone.',
+  },
+  {
+    match: 'did the agent confirm the correct security protocol',
+    tip: 'The agent should ensure all required security verification steps are completed before disclosing any booking information to maintain compliance and data protection.',
+  },
+  {
+    match: 'did the agent demonstrate empathy',
+    tip: "The agent should acknowledge the customer's situation and express empathy using appropriate phrases to build rapport and show understanding.",
+  },
+  {
+    match: 'did the agent demonstrate ownership',
+    tip: 'The agent should take full ownership of the issue by reassuring support, asking relevant questions, and confirming understanding through effective recaps.',
+  },
+  {
+    match: 'did the agent offer additional help and close properly',
+    tip: 'The agent should offer further assistance and close the call using proper branding to ensure a complete and professional customer experience.',
+  },
+  {
+    match: 'did the agent avoid long silences',
+    tip: 'The agent should avoid prolonged silence by setting expectations beforehand or providing periodic updates during the call.',
+  },
+  {
+    match: 'did the agent refresh the call within 5 minutes',
+    tip: 'The agent should return to the call within the expected timeframe to update the customer and maintain engagement.',
+  },
+  {
+    match: 'did the agent avoid negative language, interruptions, or blame',
+    tip: 'The agent should maintain a professional tone by avoiding negative language, not interrupting the customer, and refraining from blaming colleagues or systems.',
+  },
+  {
+    match: 'did the agent use mila correctly',
+    tip: 'The agent should use Mila effectively by asking clear, relevant questions aligned with the customer\'s request to ensure accurate support.',
+  },
+  {
+    match: 'did the agent transfer when mila advised',
+    tip: "The agent should follow Mila's guidance and transfer the call to Level 2 promptly when required.",
+  },
+  {
+    match: 'did the agent flag the issue on slack when needed',
+    tip: "The agent should proactively escalate cases via Slack when necessary, even without Mila's instruction, to ensure proper follow-up.",
+  },
+  {
+    match: 'was the agent transparent and compliant',
+    tip: 'The agent should provide accurate, complete, and compliant information while setting realistic expectations throughout the call.',
+  },
+  {
+    match: 'did the agent summarize and give correct timeframes',
+    tip: 'The agent should clearly summarize actions taken and next steps, including accurate timelines based on available guidance.',
+  },
+  {
+    match: 'was the issue fully resolved',
+    tip: "The agent should aim for first-contact resolution by fully addressing the customer's request and minimizing the need for repeat contact.",
+  },
+]
+
+const DEFAULT_TIP = 'Review recorded calls with your team lead to identify specific areas for improvement.'
 
 function getTip(name) {
-  const lower = name.toLowerCase()
-  for (const [key, tip] of Object.entries(IMPROVEMENT_TIPS)) {
-    if (lower.includes(key)) return tip
-  }
-  return IMPROVEMENT_TIPS.default
+  const lower = name.trim().toLowerCase()
+  const found = IMPROVEMENT_TIPS.find((entry) => lower.includes(entry.match))
+  return found ? found.tip : DEFAULT_TIP
 }
 
 function computeQualityScore(reviews) {
@@ -74,21 +122,11 @@ function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
     <div className="flex items-center gap-2 flex-wrap">
       <div className="flex items-center gap-2">
         <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">From</label>
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => onFromChange(e.target.value)}
-          style={{ width: 145 }}
-        />
+        <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} style={{ width: 145 }} />
       </div>
       <div className="flex items-center gap-2">
         <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">To</label>
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => onToChange(e.target.value)}
-          style={{ width: 145 }}
-        />
+        <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} style={{ width: 145 }} />
       </div>
       {(from || to) && (
         <button
@@ -200,7 +238,7 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
   ${strengthsHTML}
 
   <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;font-family:'DM Mono',monospace;display:flex;justify-content:space-between">
-    <span>QA Center — Agent Scorecard</span>
+    <span>QIS — Quality Intelligence System</span>
     <span>Generated: ${exportDate} · Period: ${rangeLabel}</span>
   </div>
 </body>
@@ -337,6 +375,7 @@ function ScorecardModal({ agent, state, onClose }) {
             />
           </div>
 
+          {/* Most Common Mistakes */}
           <div className="mb-5">
             <div className="font-syne font-bold text-sm mb-3 flex items-center gap-2">
               ⚠️ Most Common Mistakes
@@ -376,6 +415,7 @@ function ScorecardModal({ agent, state, onClose }) {
             )}
           </div>
 
+          {/* Improvement Opportunities */}
           {mistakes.length > 0 && (
             <div className="mb-5">
               <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
@@ -393,6 +433,7 @@ function ScorecardModal({ agent, state, onClose }) {
             </div>
           )}
 
+          {/* Strengths */}
           {strengths.length > 0 && (
             <div>
               <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
