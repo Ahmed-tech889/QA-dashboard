@@ -10,61 +10,63 @@ const GRADIENTS = [
   'from-[#e879f9] to-[#a855f7]',
 ]
 
+// Each entry has an array of keywords — ALL must appear in the criterion name for it to match.
+// Shorter, distinct keywords = resilient matching regardless of exact wording.
 const IMPROVEMENT_TIPS = [
   {
-    match: 'did the agent introduce the brand, their name, and offer help',
+    keywords: ['introduce', 'brand'],
     tip: 'The agent should open the call with a proper greeting, clearly introduce the brand and their name, and proactively offer assistance to set a professional tone.',
   },
   {
-    match: 'did the agent confirm the correct security protocol',
+    keywords: ['security', 'protocol'],
     tip: 'The agent should ensure all required security verification steps are completed before disclosing any booking information to maintain compliance and data protection.',
   },
   {
-    match: 'did the agent demonstrate empathy',
+    keywords: ['empathy'],
     tip: "The agent should acknowledge the customer's situation and express empathy using appropriate phrases to build rapport and show understanding.",
   },
   {
-    match: 'did the agent demonstrate ownership',
+    keywords: ['ownership'],
     tip: 'The agent should take full ownership of the issue by reassuring support, asking relevant questions, and confirming understanding through effective recaps.',
   },
   {
-    match: 'did the agent offer additional help and close properly',
+    keywords: ['additional help', 'close'],
     tip: 'The agent should offer further assistance and close the call using proper branding to ensure a complete and professional customer experience.',
   },
   {
-    match: 'did the agent avoid long silences',
+    keywords: ['silence'],
     tip: 'The agent should avoid prolonged silence by setting expectations beforehand or providing periodic updates during the call.',
   },
   {
-    match: 'did the agent refresh the call within 5 minutes',
+    keywords: ['refresh', 'call'],
     tip: 'The agent should return to the call within the expected timeframe to update the customer and maintain engagement.',
   },
   {
-    match: 'did the agent avoid negative language, interruptions, or blame',
+    keywords: ['negative language'],
     tip: 'The agent should maintain a professional tone by avoiding negative language, not interrupting the customer, and refraining from blaming colleagues or systems.',
   },
   {
-    match: 'did the agent use mila correctly',
-    tip: 'The agent should use Mila effectively by asking clear, relevant questions aligned with the customer\'s request to ensure accurate support.',
+    keywords: ['mila correctly'],
+    tip: "The agent should use Mila effectively by asking clear, relevant questions aligned with the customer's request to ensure accurate support.",
   },
   {
-    match: 'did the agent transfer when mila advised',
+    keywords: ['transfer', 'mila'],
     tip: "The agent should follow Mila's guidance and transfer the call to Level 2 promptly when required.",
   },
   {
-    match: 'did the agent flag the issue on slack when needed',
+    keywords: ['flag', 'slack'],
     tip: "The agent should proactively escalate cases via Slack when necessary, even without Mila's instruction, to ensure proper follow-up.",
   },
   {
-    match: 'was the agent transparent and compliant',
+    keywords: ['transparent', 'compliant'],
     tip: 'The agent should provide accurate, complete, and compliant information while setting realistic expectations throughout the call.',
   },
   {
-    match: 'did the agent summarize and give correct timeframes',
+    keywords: ['summarize', 'timeframe'],
     tip: 'The agent should clearly summarize actions taken and next steps, including accurate timelines based on available guidance.',
   },
   {
-    match: 'was the issue fully resolved',
+    keywords: ['fully resolved'],
     tip: "The agent should aim for first-contact resolution by fully addressing the customer's request and minimizing the need for repeat contact.",
   },
 ]
@@ -73,7 +75,9 @@ const DEFAULT_TIP = 'Review recorded calls with your team lead to identify speci
 
 function getTip(name) {
   const lower = name.trim().toLowerCase()
-  const found = IMPROVEMENT_TIPS.find((entry) => lower.includes(entry.match))
+  const found = IMPROVEMENT_TIPS.find((entry) =>
+    entry.keywords.every((kw) => lower.includes(kw))
+  )
   return found ? found.tip : DEFAULT_TIP
 }
 
@@ -232,9 +236,7 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
 
   <h2>⚠️ Most Common Mistakes</h2>
   ${mistakesHTML}
-
   ${mistakes.length > 0 ? `<h2>💡 Improvement Opportunities</h2>${tipsHTML}` : ''}
-
   ${strengthsHTML}
 
   <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;font-family:'DM Mono',monospace;display:flex;justify-content:space-between">
@@ -294,245 +296,4 @@ function ScorecardModal({ agent, state, onClose }) {
     ? `${dateFrom || '…'} → ${dateTo || '…'}`
     : 'All time'
 
-  const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-  const gradientIndex = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
-
-  const handleExport = () =>
-    exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel })
-
-  return (
-    <Modal open onClose={onClose} title="">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6 -mt-2">
-        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[gradientIndex]} grid place-items-center font-bold text-lg text-white shrink-0`}>
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-syne font-extrabold text-[20px] truncate">{agent.name}</div>
-          <div className="font-mono text-[11px] text-txt3">{agent.id || 'No ID'} · Agent Scorecard</div>
-        </div>
-
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="text-center">
-            <div className="font-syne font-extrabold text-[28px] leading-none"
-              style={{ color: qualityScore === null ? '#5a5a72' : qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }}>
-              {qualityScore !== null ? `${qualityScore}%` : '—'}
-            </div>
-            <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Quality Score</div>
-          </div>
-          <div className="w-px h-10 bg-border" />
-          <div className="text-center">
-            <div className="font-syne font-extrabold text-[28px] leading-none"
-              style={{ color: passRate === null ? '#5a5a72' : passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>
-              {passRate !== null ? `${passRate}%` : '—'}
-            </div>
-            <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Pass Rate</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Date range + Export */}
-      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onFromChange={setDateFrom}
-          onToChange={setDateTo}
-          onClear={() => { setDateFrom(''); setDateTo('') }}
-        />
-        <button onClick={handleExport}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40 shrink-0">
-          ⬇ Export PDF
-        </button>
-      </div>
-
-      {/* Stat pills */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[['Total Calls', agentReviews.length, null], ['Scored', scored.length, null], ['Passed', passes, '#00d4aa'], ['Failed', fails, '#ff6b6b']].map(([label, value, color]) => (
-          <div key={label} className="flex flex-col items-center px-3 py-3 bg-surface2 border border-border rounded-xl">
-            <span className="font-syne font-extrabold text-[24px] leading-none mb-1" style={color ? { color } : {}}>
-              {value}
-            </span>
-            <span className="font-mono text-[10px] tracking-widest uppercase text-txt3 text-center">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      {agentReviews.length === 0 ? (
-        <div className="text-center py-8 text-txt3 text-sm">No reviews found for this period.</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <MetricBar
-              label="Quality Score"
-              value={qualityScore}
-              description="Passed attributes ÷ (Passed + Failed) — N/A excluded"
-            />
-            <MetricBar
-              label="Pass Rate"
-              value={passRate}
-              description="Passed calls ÷ total scored calls"
-            />
-          </div>
-
-          {/* Most Common Mistakes */}
-          <div className="mb-5">
-            <div className="font-syne font-bold text-sm mb-3 flex items-center gap-2">
-              ⚠️ Most Common Mistakes
-              <span className="font-mono text-[10px] text-txt3 font-normal">(by fail %)</span>
-            </div>
-            {mistakes.length === 0 ? (
-              <div className="px-4 py-3 bg-pass/8 border border-pass/20 rounded-lg text-pass text-sm font-medium">
-                🎉 No failures recorded in this period.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {mistakes.map((m, i) => (
-                  <div key={m.name} className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-md bg-surface3 border border-border grid place-items-center font-mono text-[9px] text-txt3 shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="text-[13px] font-medium">{m.name}</span>
-                        {m.cat && <span className="font-mono text-[10px] text-txt3">{m.cat}</span>}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-[11px] text-txt3">{m.fail}/{m.total}</span>
-                        <span className="font-mono text-xs font-bold min-w-[40px] text-right"
-                          style={{ color: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}>
-                          {m.failRate}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 bg-surface3 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full score-bar-fill"
-                        style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Improvement Opportunities */}
-          {mistakes.length > 0 && (
-            <div className="mb-5">
-              <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
-              <div className="flex flex-col gap-2">
-                {mistakes.slice(0, 4).map((m) => (
-                  <div key={m.name} className="flex gap-3 px-4 py-3 bg-accent/6 border border-accent/15 rounded-lg">
-                    <span className="text-accent text-sm shrink-0 mt-px">→</span>
-                    <div>
-                      <div className="text-[12px] font-semibold text-txt mb-0.5">{m.name}</div>
-                      <div className="text-[12px] text-txt2 leading-relaxed">{getTip(m.name)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Strengths */}
-          {strengths.length > 0 && (
-            <div>
-              <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
-              <div className="flex flex-wrap gap-2">
-                {strengths.map((s) => (
-                  <span key={s.name} className="px-3 py-1 rounded-full bg-pass/10 border border-pass/20 text-pass font-mono text-[11px]">
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </Modal>
-  )
-}
-
-function AgentCard({ agent, index, onClick }) {
-  const qsColor = agent.qualityScore === null ? '#5a5a72' : agent.qualityScore >= 60 ? '#00d4aa' : '#ff6b6b'
-  const prColor = agent.passRate >= 60 ? '#00d4aa' : '#ff6b6b'
-  const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-
-  return (
-    <div onClick={onClick}
-      className="bg-surface border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-2xl transition-all duration-200">
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} grid place-items-center font-bold text-sm text-white shrink-0`}>
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-syne font-bold text-sm truncate">{agent.name}</div>
-          <div className="font-mono text-[10px] text-txt3">{agent.id || 'No ID'}</div>
-        </div>
-        <span className="font-mono text-[10px] text-txt3 border border-border rounded px-1.5 py-0.5 bg-surface2 shrink-0">View →</span>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex justify-between items-center text-xs">
-          <span className="text-txt3">Quality Score</span>
-          <span className="font-mono font-bold" style={{ color: qsColor }}>
-            {agent.qualityScore !== null ? `${agent.qualityScore}%` : '—'}
-          </span>
-        </div>
-        <div className="h-1 bg-surface3 rounded-full overflow-hidden">
-          <div className="h-full rounded-full score-bar-fill"
-            style={{ width: `${agent.qualityScore ?? 0}%`, background: qsColor }} />
-        </div>
-
-        <div className="flex justify-between items-center text-xs mt-1">
-          <span className="text-txt3">Pass Rate</span>
-          <span className="font-mono font-bold" style={{ color: prColor }}>{agent.passRate}%</span>
-        </div>
-        <div className="h-1 bg-surface3 rounded-full overflow-hidden mb-1">
-          <div className="h-full rounded-full score-bar-fill"
-            style={{ width: `${agent.passRate}%`, background: prColor }} />
-        </div>
-
-        <div className="pt-1 border-t border-border/50 flex flex-col gap-1.5 mt-1">
-          <div className="flex justify-between text-xs">
-            <span className="text-txt3">Total Reviews</span>
-            <span className="font-mono">{agent.total}</span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-txt3">Passed</span>
-            <span className="font-mono text-pass">{agent.pass}</span>
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-txt3">Failed</span>
-            <span className="font-mono text-fail">{agent.fail}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function Agents({ getAgentStats, state }) {
-  const [selectedAgent, setSelectedAgent] = useState(null)
-  const agents = Object.values(getAgentStats()).sort((a, b) => (b.qualityScore ?? 0) - (a.qualityScore ?? 0))
-
-  if (agents.length === 0) {
-    return (
-      <div className="p-8 animate-fadeIn">
-        <EmptyState icon="👥" title="No agents yet" sub="Agents appear after their first review" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-8 animate-fadeIn">
-      <div className="grid grid-cols-3 gap-4">
-        {agents.map((a, i) => (
-          <AgentCard key={a.name} agent={a} index={i} onClick={() => setSelectedAgent(a)} />
-        ))}
-      </div>
-      {selectedAgent && (
-        <ScorecardModal agent={selectedAgent} state={state} onClose={() => setSelectedAgent(null)} />
-      )}
-    </div>
-  )
-}
+  const initials = agent.name.split(' ').map((w) => w[0])
