@@ -2,12 +2,12 @@ import { useState, useMemo } from 'react'
 import { EmptyState, Modal } from './ui'
 
 const GRADIENTS = [
-  'from-[#6c63ff] to-[#a78bfa]',
-  'from-[#00d4aa] to-[#4ade80]',
-  'from-[#ff6b6b] to-[#fb923c]',
-  'from-[#ffa94d] to-[#fbbf24]',
-  'from-[#38bdf8] to-[#818cf8]',
-  'from-[#e879f9] to-[#a855f7]',
+  'from-[#6366f1] to-[#8b5cf6]',
+  'from-[#0ea5e9] to-[#2563eb]',
+  'from-[#f59e0b] to-[#ef4444]',
+  'from-[#10b981] to-[#0ea5e9]',
+  'from-[#ec4899] to-[#8b5cf6]',
+  'from-[#f97316] to-[#eab308]',
 ]
 
 const IMPROVEMENT_TIPS = [
@@ -57,39 +57,60 @@ function computePassRate(reviews) {
 }
 
 function MetricBar({ label, value, description }) {
-  const color = value === null ? '#5a5a72' : value >= 60 ? '#00d4aa' : '#ff6b6b'
+  const color = value === null ? '#8888a0' : value >= 60 ? '#16a34a' : '#e11d48'
   return (
-    <div className="px-4 py-3.5 bg-surface2 border border-border rounded-xl">
+    <div className="px-4 py-3.5 rounded-xl" style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
       <div className="flex justify-between items-center mb-2">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-txt3">{label}</span>
-        <span className="font-mono text-xs font-bold" style={{ color }}>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</span>
+        <span className="text-xs font-bold" style={{ color, fontFamily: "'Poppins',sans-serif" }}>
           {value !== null ? `${value}%` : '—'}
         </span>
       </div>
-      <div className="h-1.5 bg-surface3 rounded-full overflow-hidden relative mb-1.5">
+      <div className="h-1.5 rounded-full overflow-hidden relative mb-1.5" style={{ background: '#dcdce0' }}>
         {value !== null && (
           <div className="h-full rounded-full score-bar-fill" style={{ width: `${value}%`, background: color }} />
         )}
-        <div className="absolute top-0 bottom-0 w-px bg-txt3/40" style={{ left: '60%' }} />
+        <div className="absolute top-0 bottom-0 w-px" style={{ left: '60%', background: '#a0a0b0' }} />
       </div>
-      <div className="font-mono text-[9px] text-txt3 leading-relaxed">{description}</div>
+      <div className="text-[9px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{description}</div>
     </div>
   )
 }
 
 function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
+  const inputStyle = {
+    background: '#f5f5f8',
+    border: '1px solid #d0d0d6',
+    borderRadius: 7,
+    padding: '3px 8px',
+    color: '#1a1a2e',
+    fontSize: 11,
+    fontFamily: "'Poppins',sans-serif",
+    outline: 'none',
+    width: 136,
+    height: 26,
+  }
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex items-center gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">From</label>
-        <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} style={{ width: 145 }} />
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-semibold tracking-[1.5px] uppercase shrink-0"
+          style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>From</label>
+        <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} style={inputStyle} />
       </div>
-      <div className="flex items-center gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">To</label>
-        <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} style={{ width: 145 }} />
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-semibold tracking-[1.5px] uppercase shrink-0"
+          style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>To</label>
+        <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} style={inputStyle} />
       </div>
       {(from || to) && (
-        <button onClick={onClear} className="px-2.5 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all bg-surface2 text-txt3 border-border hover:text-txt">
+        <button
+          onClick={onClear}
+          style={{
+            fontSize: 11, fontWeight: 600, padding: '3px 9px', height: 26,
+            borderRadius: 7, background: '#dcdce0', border: '1px solid #c8c8ce',
+            color: '#505060', cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+          }}
+        >
           Clear
         </button>
       )}
@@ -97,7 +118,6 @@ function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
   )
 }
 
-// ── Notes Modal ───────────────────────────────────────────────────────────────
 function NotesModal({ agent, agentReviews, onClose }) {
   const [expandedSid, setExpandedSid] = useState(null)
 
@@ -109,22 +129,20 @@ function NotesModal({ agent, agentReviews, onClose }) {
   )
 
   return (
-    <Modal open onClose={onClose} title="📝 Call Notes">
+    <Modal open onClose={onClose} title="Call Notes">
       {notedReviews.length === 0 ? (
-        <div className="text-center py-10 text-txt3 text-sm">No notes recorded for this agent yet.</div>
+        <div className="text-center py-10 text-sm" style={{ color: '#8888a0' }}>No notes recorded for this agent yet.</div>
       ) : (
         <div className="flex flex-col gap-3">
           {notedReviews.map((r) => (
-            <div
-              key={r.id}
-              className="px-4 py-3.5 bg-surface2 border border-border rounded-xl hover:border-accent/30 transition-all"
-            >
-              {/* Header row: date + toggle SID */}
+            <div key={r.id} className="px-4 py-3.5 rounded-xl transition-all"
+              style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-[11px] text-txt3">{r.callDate}</span>
+                  <span className="text-[11px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{r.callDate}</span>
                   {r.reviewer && (
-                    <span className="font-mono text-[10px] text-txt3 px-1.5 py-px bg-surface3 border border-border rounded">
+                    <span className="text-[10px] font-medium px-1.5 py-px rounded"
+                      style={{ background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}>
                       {r.reviewer}
                     </span>
                   )}
@@ -132,23 +150,20 @@ function NotesModal({ agent, agentReviews, onClose }) {
                 {r.sid && (
                   <button
                     onClick={() => setExpandedSid(expandedSid === r.id ? null : r.id)}
-                    className="font-mono text-[10px] px-2.5 py-1 rounded-lg border cursor-pointer transition-all bg-accent/8 text-accent border-accent/25 hover:bg-accent/15"
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-all"
+                    style={{ background: '#e8f0ff', color: '#2563eb', border: '1px solid #c8d4f0', fontFamily: "'Poppins',sans-serif" }}
                   >
                     {expandedSid === r.id ? 'Hide SID' : 'Show SID'}
                   </button>
                 )}
               </div>
-
-              {/* SID reveal */}
               {expandedSid === r.id && r.sid && (
-                <div className="mb-2 px-3 py-2 bg-surface3 border border-border rounded-lg">
-                  <span className="font-mono text-[10px] text-txt3 uppercase tracking-widest mr-2">SID</span>
-                  <span className="font-mono text-[12px] text-txt">{r.sid}</span>
+                <div className="mb-2 px-3 py-2 rounded-lg" style={{ background: '#dcdce0', border: '1px solid #c8c8ce' }}>
+                  <span className="text-[10px] uppercase tracking-widest mr-2" style={{ color: '#8888a0' }}>SID</span>
+                  <span className="text-[12px] font-semibold" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>{r.sid}</span>
                 </div>
               )}
-
-              {/* Note text */}
-              <p className="text-[13px] text-txt2 leading-relaxed">{r.notes}</p>
+              <p className="text-[13px] leading-relaxed" style={{ color: '#505060' }}>{r.notes}</p>
             </div>
           ))}
         </div>
@@ -168,7 +183,7 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
       <div style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:#374151;margin-bottom:3px">
           <span>${i + 1}. ${m.name}${m.cat ? ` <em style="color:#9ca3af">(${m.cat})</em>` : ''}</span>
-          <span style="font-family:'DM Mono',monospace;font-weight:700;color:${m.failRate > 50 ? '#dc2626' : '#d97706'}">${m.fail}/${m.total} — ${m.failRate}%</span>
+          <span style="font-weight:700;color:${m.failRate > 50 ? '#dc2626' : '#d97706'}">${m.fail}/${m.total} — ${m.failRate}%</span>
         </div>
         <div style="height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden">
           <div style="height:100%;width:${m.failRate}%;border-radius:99px;background:${m.failRate > 50 ? '#dc2626' : '#f59e0b'}"></div>
@@ -183,77 +198,51 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
 
   const strengthsHTML = strengths.length === 0 ? '' : `
     <div style="font-size:13px;font-weight:700;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6">Strengths</div>
-    <div>${strengths.map((s) => `<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;font-size:10px;font-family:'DM Mono',monospace;margin:2px">${s.name}</span>`).join('')}</div>`
+    <div>${strengths.map((s) => `<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;font-size:10px;margin:2px">${s.name}</span>`).join('')}</div>`
 
   const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Agent Scorecard - ${agent.name}</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Mono:wght@400;500&family=Syne:wght@800&display=swap" rel="stylesheet"/>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#fff;color:#111;font-family:'DM Sans',Arial,sans-serif;font-size:12px;padding:40px;max-width:800px;margin:0 auto}
-    h2{font-size:13px;font-weight:700;color:#111;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6}
-  </style>
-</head>
-<body>
+<html><head><meta charset="utf-8"/>
+<title>Agent Scorecard - ${agent.name}</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;color:#111;font-family:'Poppins',Arial,sans-serif;font-size:12px;padding:40px;max-width:800px;margin:0 auto}
+  h2{font-size:13px;font-weight:700;color:#111;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6}
+</style>
+</head><body>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #e5e7eb;padding-bottom:16px;margin-bottom:24px">
     <div>
-      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.4px">${agent.name}</div>
-      <div style="font-size:11px;color:#6b7280;margin-top:4px;font-family:'DM Mono',monospace">${agent.id || 'No ID'} - Agent Scorecard - ${rangeLabel}</div>
+      <div style="font-size:22px;font-weight:800;letter-spacing:-0.4px">${agent.name}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px">${agent.id || 'No ID'} · Agent Scorecard · ${rangeLabel}</div>
     </div>
-    <div style="display:flex;gap:24px;align-items:flex-start">
+    <div style="display:flex;gap:24px">
       <div style="text-align:center">
-        <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:${qsColor};line-height:1">${qualityScore !== null ? qualityScore + '%' : '-'}</div>
-        <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-top:3px">Quality Score</div>
+        <div style="font-size:30px;font-weight:800;color:${qsColor};line-height:1">${qualityScore !== null ? qualityScore + '%' : '-'}</div>
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-top:3px">Quality Score</div>
       </div>
       <div style="width:1px;background:#e5e7eb;align-self:stretch"></div>
       <div style="text-align:center">
-        <div style="font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:${prColor};line-height:1">${passRate !== null ? passRate + '%' : '-'}</div>
-        <div style="font-size:9px;color:#9ca3af;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;margin-top:3px">Pass Rate</div>
+        <div style="font-size:30px;font-weight:800;color:${prColor};line-height:1">${passRate !== null ? passRate + '%' : '-'}</div>
+        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-top:3px">Pass Rate</div>
       </div>
     </div>
   </div>
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
     ${[['Total Calls', agentReviews.length, '#111'], ['Scored', scored.length, '#111'], ['Passed', passes, '#059669'], ['Failed', fails, '#dc2626']].map(([l, v, c]) => `
       <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:12px 14px;background:#f9fafb">
-        <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1.2px;color:#9ca3af;margin-bottom:4px">${l}</div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:#9ca3af;margin-bottom:4px">${l}</div>
         <div style="font-size:24px;font-weight:800;line-height:1;color:${c}">${v}</div>
       </div>`).join('')}
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px">
-    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:#9ca3af">Quality Score</span>
-        <span style="font-size:11px;font-family:'DM Mono',monospace;font-weight:700;color:${qsColor}">${qualityScore !== null ? qualityScore + '%' : '-'}</span>
-      </div>
-      <div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-bottom:5px">
-        <div style="height:100%;border-radius:99px;width:${qualityScore ?? 0}%;background:${qsColor}"></div>
-      </div>
-      <div style="font-size:10px;color:#6b7280">Passed attributes / (Passed + Failed) - N/A excluded</div>
-    </div>
-    <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:#9ca3af">Pass Rate</span>
-        <span style="font-size:11px;font-family:'DM Mono',monospace;font-weight:700;color:${prColor}">${passRate !== null ? passRate + '%' : '-'}</span>
-      </div>
-      <div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-bottom:5px">
-        <div style="height:100%;border-radius:99px;width:${passRate ?? 0}%;background:${prColor}"></div>
-      </div>
-      <div style="font-size:10px;color:#6b7280">Passed calls / total scored calls</div>
-    </div>
   </div>
   <h2>Most Common Mistakes</h2>
   ${mistakesHTML}
   ${mistakes.length > 0 ? '<h2>Improvement Opportunities</h2>' + tipsHTML : ''}
   ${strengthsHTML}
-  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;font-family:'DM Mono',monospace;display:flex;justify-content:space-between">
-    <span>QIS - Quality Intelligence System</span>
-    <span>Generated: ${exportDate} - Period: ${rangeLabel}</span>
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between">
+    <span>QIS — Quality Intelligence System</span>
+    <span>Generated: ${exportDate} · Period: ${rangeLabel}</span>
   </div>
-</body>
-</html>`
+</body></html>`
 
   const win = window.open('', '_blank')
   win.document.write(html)
@@ -303,72 +292,66 @@ function ScorecardModal({ agent, state, onClose }) {
   const mistakes  = mistakeMap.filter((m) => m.failRate > 0)
   const strengths = mistakeMap.filter((m) => m.failRate === 0)
 
-  const rangeLabel = dateFrom || dateTo
-    ? `${dateFrom || '…'} → ${dateTo || '…'}`
-    : 'All time'
+  const rangeLabel = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
 
   const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-  const gradientIndex = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
-
-  const handleExport = () =>
-    exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel })
+  const gradIdx  = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
 
   return (
     <>
       <Modal open onClose={onClose} title="">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6 -mt-2">
-          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[gradientIndex]} grid place-items-center font-bold text-lg text-white shrink-0`}>
+          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[gradIdx]} grid place-items-center font-bold text-lg text-white shrink-0`}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-syne font-extrabold text-[20px] truncate">{agent.name}</div>
-            <div className="font-mono text-[11px] text-txt3">{agent.id || 'No ID'} · Agent Scorecard</div>
+            <div className="font-bold text-[20px] truncate" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>{agent.name}</div>
+            <div className="text-[11px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{agent.id || 'No ID'} · Agent Scorecard</div>
           </div>
           <div className="flex items-center gap-4 shrink-0">
             <div className="text-center">
-              <div className="font-syne font-extrabold text-[28px] leading-none"
-                style={{ color: qualityScore === null ? '#5a5a72' : qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+              <div className="font-bold text-[28px] leading-none" style={{ color: qualityScore === null ? '#8888a0' : qualityScore >= 60 ? '#16a34a' : '#e11d48', fontFamily: "'Poppins',sans-serif" }}>
                 {qualityScore !== null ? `${qualityScore}%` : '—'}
               </div>
-              <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Quality Score</div>
+              <div className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: '#8888a0' }}>Quality Score</div>
             </div>
-            <div className="w-px h-10 bg-border" />
+            <div className="w-px h-10" style={{ background: '#d0d0d6' }} />
             <div className="text-center">
-              <div className="font-syne font-extrabold text-[28px] leading-none"
-                style={{ color: passRate === null ? '#5a5a72' : passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+              <div className="font-bold text-[28px] leading-none" style={{ color: passRate === null ? '#8888a0' : passRate >= 60 ? '#16a34a' : '#e11d48', fontFamily: "'Poppins',sans-serif" }}>
                 {passRate !== null ? `${passRate}%` : '—'}
               </div>
-              <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Pass Rate</div>
+              <div className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: '#8888a0' }}>Pass Rate</div>
             </div>
           </div>
         </div>
 
-        {/* Toolbar: date filter + notes button + export */}
+        {/* Toolbar */}
         <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
           <DateRangeFilter
-            from={dateFrom}
-            to={dateTo}
-            onFromChange={setDateFrom}
-            onToChange={setDateTo}
+            from={dateFrom} to={dateTo}
+            onFromChange={setDateFrom} onToChange={setDateTo}
             onClear={() => { setDateFrom(''); setDateTo('') }}
           />
           <div className="flex items-center gap-2 shrink-0">
-            {/* Notes button */}
             <button
               onClick={() => setShowNotes(true)}
-              className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40"
+              className="relative flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all hover:opacity-80"
+              style={{ padding: '3px 12px', height: 26, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}
             >
-              📝 Notes
+              Notes
               {notesCount > 0 && (
-                <span className="ml-0.5 px-1.5 py-px rounded-full bg-accent text-white font-mono text-[9px]">
+                <span className="px-1.5 py-px rounded-full text-white font-semibold text-[9px]"
+                  style={{ background: '#2563eb', fontFamily: "'Poppins',sans-serif" }}>
                   {notesCount}
                 </span>
               )}
             </button>
-            {/* Export PDF */}
-            <button onClick={handleExport}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40">
+            <button
+              onClick={() => exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel })}
+              className="flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all hover:opacity-80"
+              style={{ padding: '3px 12px', height: 26, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}
+            >
               ⬇ Export PDF
             </button>
           </div>
@@ -376,23 +359,18 @@ function ScorecardModal({ agent, state, onClose }) {
 
         {/* Stat pills */}
         <div className="grid grid-cols-4 gap-3 mb-5">
-          {[
-            ['Total Calls', agentReviews.length, null],
-            ['Scored', scored.length, null],
-            ['Passed', passes, '#00d4aa'],
-            ['Failed', fails, '#ff6b6b'],
-          ].map(([label, value, color]) => (
-            <div key={label} className="flex flex-col items-center px-3 py-3 bg-surface2 border border-border rounded-xl">
-              <span className="font-syne font-extrabold text-[24px] leading-none mb-1" style={color ? { color } : {}}>
+          {[['Total Calls', agentReviews.length, null], ['Scored', scored.length, null], ['Passed', passes, '#16a34a'], ['Failed', fails, '#e11d48']].map(([label, value, color]) => (
+            <div key={label} className="flex flex-col items-center px-3 py-3 rounded-xl" style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
+              <span className="font-bold text-[24px] leading-none mb-1" style={color ? { color, fontFamily: "'Poppins',sans-serif" } : { color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
                 {value}
               </span>
-              <span className="font-mono text-[10px] tracking-widest uppercase text-txt3 text-center">{label}</span>
+              <span className="text-[10px] uppercase tracking-widest text-center" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</span>
             </div>
           ))}
         </div>
 
         {agentReviews.length === 0 ? (
-          <div className="text-center py-8 text-txt3 text-sm">No reviews found for this period.</div>
+          <div className="text-center py-8 text-sm" style={{ color: '#8888a0' }}>No reviews found for this period.</div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 mb-6">
@@ -401,13 +379,13 @@ function ScorecardModal({ agent, state, onClose }) {
             </div>
 
             <div className="mb-5">
-              <div className="font-syne font-bold text-sm mb-3 flex items-center gap-2">
-                ⚠️ Most Common Mistakes
-                <span className="font-mono text-[10px] text-txt3 font-normal">(by fail %)</span>
+              <div className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
+                Most Common Mistakes
+                <span className="text-[10px] font-normal" style={{ color: '#8888a0' }}>(by fail %)</span>
               </div>
               {mistakes.length === 0 ? (
-                <div className="px-4 py-3 bg-pass/8 border border-pass/20 rounded-lg text-pass text-sm font-medium">
-                  🎉 No failures recorded in this period.
+                <div className="px-4 py-3 rounded-lg text-sm font-semibold" style={{ background: '#e6f9ee', border: '1px solid #a8ecc0', color: '#16a34a' }}>
+                  No failures recorded in this period.
                 </div>
               ) : (
                 <div className="flex flex-col gap-2.5">
@@ -415,23 +393,24 @@ function ScorecardModal({ agent, state, onClose }) {
                     <div key={m.name} className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-md bg-surface3 border border-border grid place-items-center font-mono text-[9px] text-txt3 shrink-0">
+                          <span className="w-5 h-5 rounded-md flex items-center justify-center font-semibold text-[9px] shrink-0"
+                            style={{ background: '#dcdce0', border: '1px solid #c8c8ce', color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>
                             {i + 1}
                           </span>
-                          <span className="text-[13px] font-medium">{m.name}</span>
-                          {m.cat && <span className="font-mono text-[10px] text-txt3">{m.cat}</span>}
+                          <span className="text-[13px] font-semibold" style={{ color: '#1a1a2e' }}>{m.name}</span>
+                          {m.cat && <span className="text-[10px]" style={{ color: '#8888a0' }}>{m.cat}</span>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-mono text-[11px] text-txt3">{m.fail}/{m.total}</span>
-                          <span className="font-mono text-xs font-bold min-w-[40px] text-right"
-                            style={{ color: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}>
+                          <span className="text-[11px]" style={{ color: '#8888a0' }}>{m.fail}/{m.total}</span>
+                          <span className="font-bold text-xs min-w-[40px] text-right"
+                            style={{ color: m.failRate > 50 ? '#e11d48' : '#d97706', fontFamily: "'Poppins',sans-serif" }}>
                             {m.failRate}%
                           </span>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-surface3 rounded-full overflow-hidden">
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#dcdce0' }}>
                         <div className="h-full rounded-full score-bar-fill"
-                          style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }} />
+                          style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#e11d48' : '#d97706' }} />
                       </div>
                     </div>
                   ))}
@@ -441,14 +420,14 @@ function ScorecardModal({ agent, state, onClose }) {
 
             {mistakes.length > 0 && (
               <div className="mb-5">
-                <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
+                <div className="font-bold text-sm mb-3" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>Improvement Opportunities</div>
                 <div className="flex flex-col gap-2">
                   {mistakes.slice(0, 4).map((m) => (
-                    <div key={m.name} className="flex gap-3 px-4 py-3 bg-accent/6 border border-accent/15 rounded-lg">
-                      <span className="text-accent text-sm shrink-0 mt-px">→</span>
+                    <div key={m.name} className="flex gap-3 px-4 py-3 rounded-lg" style={{ background: '#e8f0ff', border: '1px solid #c8d4f0' }}>
+                      <span className="text-sm shrink-0 mt-px" style={{ color: '#2563eb' }}>→</span>
                       <div>
-                        <div className="text-[12px] font-semibold text-txt mb-0.5">{m.name}</div>
-                        <div className="text-[12px] text-txt2 leading-relaxed">{getTip(m.name)}</div>
+                        <div className="text-[12px] font-semibold mb-0.5" style={{ color: '#1a1a2e' }}>{m.name}</div>
+                        <div className="text-[12px] leading-relaxed" style={{ color: '#505060' }}>{getTip(m.name)}</div>
                       </div>
                     </div>
                   ))}
@@ -458,10 +437,11 @@ function ScorecardModal({ agent, state, onClose }) {
 
             {strengths.length > 0 && (
               <div>
-                <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
+                <div className="font-bold text-sm mb-3" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>Strengths</div>
                 <div className="flex flex-wrap gap-2">
                   {strengths.map((s) => (
-                    <span key={s.name} className="px-3 py-1 rounded-full bg-pass/10 border border-pass/20 text-pass font-mono text-[11px]">
+                    <span key={s.name} className="px-3 py-1 rounded-full text-[11px] font-semibold"
+                      style={{ background: '#e6f9ee', border: '1px solid #a8ecc0', color: '#16a34a', fontFamily: "'Poppins',sans-serif" }}>
                       {s.name}
                     </span>
                   ))}
@@ -473,66 +453,66 @@ function ScorecardModal({ agent, state, onClose }) {
       </Modal>
 
       {showNotes && (
-        <NotesModal
-          agent={agent}
-          agentReviews={agentReviews}
-          onClose={() => setShowNotes(false)}
-        />
+        <NotesModal agent={agent} agentReviews={agentReviews} onClose={() => setShowNotes(false)} />
       )}
     </>
   )
 }
 
 function AgentCard({ agent, index, onClick }) {
-  const qsColor = agent.qualityScore === null ? '#5a5a72' : agent.qualityScore >= 60 ? '#00d4aa' : '#ff6b6b'
-  const prColor = agent.passRate >= 60 ? '#00d4aa' : '#ff6b6b'
+  const qsColor = agent.qualityScore === null ? '#8888a0' : agent.qualityScore >= 60 ? '#16a34a' : '#e11d48'
+  const prColor = agent.passRate >= 60 ? '#16a34a' : '#e11d48'
   const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
 
   return (
     <div onClick={onClick}
-      className="bg-surface border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-2xl transition-all duration-200">
+      className="rounded-xl p-5 cursor-pointer card-lift transition-all duration-200"
+      style={{ background: '#f5f5f8', border: '1px solid #d0d0d6', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} grid place-items-center font-bold text-sm text-white shrink-0`}>
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-syne font-bold text-sm truncate">{agent.name}</div>
-          <div className="font-mono text-[10px] text-txt3">{agent.id || 'No ID'}</div>
+          <div className="font-bold text-sm truncate" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>{agent.name}</div>
+          <div className="text-[10px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{agent.id || 'No ID'}</div>
         </div>
-        <span className="font-mono text-[10px] text-txt3 border border-border rounded px-1.5 py-0.5 bg-surface2 shrink-0">View →</span>
+        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+          style={{ color: '#8888a0', border: '1px solid #d0d0d6', background: '#ebebee', fontFamily: "'Poppins',sans-serif" }}>
+          View →
+        </span>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center text-xs">
-          <span className="text-txt3">Quality Score</span>
-          <span className="font-mono font-bold" style={{ color: qsColor }}>
+          <span style={{ color: '#8888a0' }}>Quality Score</span>
+          <span className="font-bold" style={{ color: qsColor, fontFamily: "'Poppins',sans-serif" }}>
             {agent.qualityScore !== null ? `${agent.qualityScore}%` : '—'}
           </span>
         </div>
-        <div className="h-1 bg-surface3 rounded-full overflow-hidden">
+        <div className="h-1 rounded-full overflow-hidden" style={{ background: '#dcdce0' }}>
           <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.qualityScore ?? 0}%`, background: qsColor }} />
         </div>
 
         <div className="flex justify-between items-center text-xs mt-1">
-          <span className="text-txt3">Pass Rate</span>
-          <span className="font-mono font-bold" style={{ color: prColor }}>{agent.passRate}%</span>
+          <span style={{ color: '#8888a0' }}>Pass Rate</span>
+          <span className="font-bold" style={{ color: prColor, fontFamily: "'Poppins',sans-serif" }}>{agent.passRate}%</span>
         </div>
-        <div className="h-1 bg-surface3 rounded-full overflow-hidden mb-1">
+        <div className="h-1 rounded-full overflow-hidden mb-1" style={{ background: '#dcdce0' }}>
           <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.passRate}%`, background: prColor }} />
         </div>
 
-        <div className="pt-1 border-t border-border/50 flex flex-col gap-1.5 mt-1">
+        <div className="pt-1 flex flex-col gap-1.5 mt-1" style={{ borderTop: '1px solid #dcdce0' }}>
           <div className="flex justify-between text-xs">
-            <span className="text-txt3">Total Reviews</span>
-            <span className="font-mono">{agent.total}</span>
+            <span style={{ color: '#8888a0' }}>Total Reviews</span>
+            <span className="font-semibold" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>{agent.total}</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-txt3">Passed</span>
-            <span className="font-mono text-pass">{agent.pass}</span>
+            <span style={{ color: '#8888a0' }}>Passed</span>
+            <span className="font-semibold" style={{ color: '#16a34a', fontFamily: "'Poppins',sans-serif" }}>{agent.pass}</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-txt3">Failed</span>
-            <span className="font-mono text-fail">{agent.fail}</span>
+            <span style={{ color: '#8888a0' }}>Failed</span>
+            <span className="font-semibold" style={{ color: '#e11d48', fontFamily: "'Poppins',sans-serif" }}>{agent.fail}</span>
           </div>
         </div>
       </div>
