@@ -18,6 +18,8 @@ const PAGE_TITLES = {
   criteria:  'QA Criteria',
 }
 
+const HEADER_HEIGHT = 57
+
 export default function App() {
   const [page, setPage] = useState('dashboard')
   const store = useStore()
@@ -78,9 +80,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bg text-txt font-dm">
-      <Sidebar activePage={page} onNavigate={setPage} />
+      <Sidebar activePage={page} onNavigate={setPage} headerHeight={HEADER_HEIGHT} />
       <main className="ml-[220px] min-h-screen flex flex-col">
-        <div className="sticky top-0 z-50 px-8 py-[18px] bg-surface border-b border-border flex items-center justify-between">
+        <div
+          className="sticky top-0 z-50 px-8 bg-surface border-b border-border flex items-center justify-between"
+          style={{ height: HEADER_HEIGHT }}
+        >
           <h1 className="font-syne font-bold text-[18px]">{PAGE_TITLES[page]}</h1>
           <div className="flex items-center gap-2.5">
             <Btn variant="ghost" onClick={() => setPage('calls')}>📁 Call Log</Btn>
