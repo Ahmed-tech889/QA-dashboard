@@ -3,39 +3,61 @@ import { AttrBar, Badge, EmptyState, Panel, PanelHeader, Tag } from './ui'
 
 function StatCard({ label, value, color, accent }) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-5 relative overflow-hidden">
-      <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${accent} to-transparent`} />
-      <div className="font-mono text-[11px] tracking-widest uppercase text-txt3 mb-2.5">{label}</div>
-      <div className="font-syne font-extrabold text-[32px] leading-none" style={color ? { color } : {}}>{value}</div>
+    <div className="rounded-2xl p-5 relative overflow-hidden card-lift"
+      style={{ background: '#f5f5f8', border: '1px solid #d0d0d6', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl bg-gradient-to-r ${accent} to-transparent`} />
+      <div className="text-[10px] font-semibold tracking-[0.8px] uppercase mb-2.5"
+        style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</div>
+      <div className="font-bold text-[30px] leading-none" style={{ color: color || '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
+        {value}
+      </div>
     </div>
   )
 }
 
 function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
+  const inputStyle = {
+    background: '#f5f5f8',
+    border: '1px solid #d0d0d6',
+    borderRadius: 7,
+    padding: '3px 8px',
+    color: '#1a1a2e',
+    fontSize: 11,
+    fontFamily: "'Poppins',sans-serif",
+    outline: 'none',
+    width: 136,
+    height: 26,
+  }
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex items-center gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">From</label>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-semibold tracking-[1.5px] uppercase shrink-0"
+          style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>From</label>
         <input
           type="date"
           value={from}
           onChange={(e) => onFromChange(e.target.value)}
-          style={{ width: 150 }}
+          style={inputStyle}
         />
       </div>
-      <div className="flex items-center gap-2">
-        <label className="font-mono text-[11px] uppercase tracking-widest text-txt3 shrink-0">To</label>
+      <div className="flex items-center gap-1.5">
+        <label className="text-[10px] font-semibold tracking-[1.5px] uppercase shrink-0"
+          style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>To</label>
         <input
           type="date"
           value={to}
           onChange={(e) => onToChange(e.target.value)}
-          style={{ width: 150 }}
+          style={inputStyle}
         />
       </div>
       {(from || to) && (
         <button
           onClick={onClear}
-          className="px-3 py-1.5 rounded-lg text-[11px] font-mono cursor-pointer border transition-all bg-surface2 text-txt3 border-border hover:text-txt"
+          style={{
+            fontSize: 11, fontWeight: 600, padding: '3px 9px', height: 26,
+            borderRadius: 7, background: '#dcdce0', border: '1px solid #c8c8ce',
+            color: '#505060', cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+          }}
         >
           Clear
         </button>
@@ -117,13 +139,11 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
       <span class="meta-chip">${reviews.length} total calls</span>
     </div>
   </div>
-
   <div class="stats-grid">
     <div class="stat-box"><div class="stat-val">${reviews.length}</div><div class="stat-lbl">Total Calls</div></div>
     <div class="stat-box"><div class="stat-val" style="color:#059669">${passRate !== null ? passRate + '%' : '—'}</div><div class="stat-lbl">Pass Rate</div></div>
     <div class="stat-box"><div class="stat-val" style="color:#dc2626">${failRate !== null ? failRate + '%' : '—'}</div><div class="stat-lbl">Fail Rate</div></div>
   </div>
-
   <div class="section">
     <div class="section-title">📊 Agent Performance</div>
     ${agentStats.length === 0 ? '<p style="color:#888">No agent data available.</p>' : `
@@ -132,12 +152,10 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
       <tbody>${agentRowsHTML}</tbody>
     </table>`}
   </div>
-
   <div class="section">
     <div class="section-title">⚠️ Worst Performing Criteria</div>
     ${attrFails.length === 0 ? '<p style="color:#888">No criteria data available.</p>' : criteriaRowsHTML}
   </div>
-
   <div class="section">
     <div class="section-title">👥 Reviewer Activity</div>
     ${reviewerActivity.length === 0 ? '<p style="color:#888">No reviewer data available.</p>' : `
@@ -146,9 +164,8 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
       <tbody>${reviewerRowsHTML}</tbody>
     </table>`}
   </div>
-
   <div class="footer">
-    <span>QA Center · Performance Report</span>
+    <span>QIS — Quality Intelligence System</span>
     <span>${rangeLabel} · ${exportDate}</span>
   </div>
 </body>
@@ -218,30 +235,22 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
     return Object.values(r).sort((a, b) => b.total - a.total)
   }, [filteredReviews])
 
-  const rangeLabel = dateFrom || dateTo
-    ? `${dateFrom || '…'} → ${dateTo || '…'}`
-    : 'All time'
+  const rangeLabel = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
   const exportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-  const handleExportPDF = () => {
-    exportReportsPDF({ rangeLabel, exportDate, reviews: filteredReviews, scored, passes, fails, passRate, failRate, agentStats, attrFails, reviewerActivity })
-  }
-
   return (
-    <div className="p-8 animate-fadeIn">
-
+    <div className="p-7 animate-fadeIn">
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onFromChange={setDateFrom}
-          onToChange={setDateTo}
+          from={dateFrom} to={dateTo}
+          onFromChange={setDateFrom} onToChange={setDateTo}
           onClear={() => { setDateFrom(''); setDateTo('') }}
         />
         <button
-          onClick={handleExportPDF}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface2 border border-border text-txt2 hover:text-txt hover:border-accent/40 cursor-pointer transition-all text-[13px] font-medium shrink-0"
+          onClick={() => exportReportsPDF({ rangeLabel, exportDate, reviews: filteredReviews, scored, passes, fails, passRate, failRate, agentStats, attrFails, reviewerActivity })}
+          className="flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all hover:opacity-80"
+          style={{ padding: '5px 14px', height: 30, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}
         >
           ⬇ Export PDF
         </button>
@@ -249,28 +258,29 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
 
       {/* Stat Cards */}
       <div className="grid grid-cols-3 gap-4 mb-7">
-        <StatCard label="Total Calls" value={filteredReviews.length} accent="from-accent" />
-        <StatCard label="Pass Rate"   value={passRate !== null ? passRate + '%' : '—'} color="#00d4aa" accent="from-pass" />
-        <StatCard label="Fail Rate"   value={failRate !== null ? failRate + '%' : '—'} color="#ff6b6b" accent="from-fail" />
+        <StatCard label="Total Calls" value={filteredReviews.length} accent="from-accent"  />
+        <StatCard label="Pass Rate"   value={passRate !== null ? passRate + '%' : '—'} color="#16a34a" accent="from-accent3" />
+        <StatCard label="Fail Rate"   value={failRate !== null ? failRate + '%' : '—'} color="#e11d48" accent="from-accent2" />
       </div>
 
       <div className="grid grid-cols-2 gap-5 mb-5">
         <Panel>
-          <PanelHeader title="📊 Agent Performance" />
+          <PanelHeader title="Agent Performance" />
           {agentStats.length === 0
             ? <EmptyState icon="👥" sub="No data" />
             : <table className="w-full border-collapse">
                 <thead>
                   <tr>{['Agent', 'Total', 'Pass%', 'Status'].map((h) => (
-                    <th key={h} className="text-left font-mono text-[10px] tracking-widest uppercase text-txt3 px-4 py-2.5 border-b border-border bg-surface2">{h}</th>
+                    <th key={h} className="text-left text-[11px] font-semibold tracking-wide uppercase px-4 py-3"
+                      style={{ color: '#8888a0', borderBottom: '1px solid #dcdce0', background: '#efeff2', fontFamily: "'Poppins',sans-serif" }}>{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody>
                   {agentStats.map((a) => (
-                    <tr key={a.name} className="border-b border-border/50 last:border-0 hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 font-semibold text-[13.5px]">{a.name}</td>
-                      <td className="px-4 py-3 text-sm">{a.total}</td>
-                      <td className="px-4 py-3 font-mono text-sm" style={{ color: a.passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>{a.passRate}%</td>
+                    <tr key={a.name} className="transition-colors hover:bg-surface2" style={{ borderBottom: '1px solid #e4e4e8' }}>
+                      <td className="px-4 py-3 font-semibold text-[13px]" style={{ color: '#1a1a2e' }}>{a.name}</td>
+                      <td className="px-4 py-3 text-[13px]" style={{ color: '#505060' }}>{a.total}</td>
+                      <td className="px-4 py-3 font-semibold text-[13px]" style={{ color: a.passRate >= 60 ? '#16a34a' : '#e11d48' }}>{a.passRate}%</td>
                       <td className="px-4 py-3"><Badge result={a.passRate >= 60 ? 'pass' : 'fail'} /></td>
                     </tr>
                   ))}
@@ -280,7 +290,7 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
         </Panel>
 
         <Panel>
-          <PanelHeader title="⚠️ Worst Performing Criteria" />
+          <PanelHeader title="Worst Performing Criteria" />
           <div className="p-5">
             {attrFails.length === 0
               ? <EmptyState icon="📋" sub="No criteria scored yet" />
@@ -291,23 +301,24 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
       </div>
 
       <Panel>
-        <PanelHeader title="👥 Reviewer Activity" />
+        <PanelHeader title="Reviewer Activity" />
         {reviewerActivity.length === 0
           ? <EmptyState icon="👤" sub="No activity yet" />
           : <table className="w-full border-collapse">
               <thead>
                 <tr>{['Reviewer', 'Total Reviews', 'Pass', 'Fail', 'Pending'].map((h) => (
-                  <th key={h} className="text-left font-mono text-[10px] tracking-widest uppercase text-txt3 px-4 py-2.5 border-b border-border bg-surface2">{h}</th>
+                  <th key={h} className="text-left text-[11px] font-semibold tracking-wide uppercase px-4 py-3"
+                    style={{ color: '#8888a0', borderBottom: '1px solid #dcdce0', background: '#efeff2', fontFamily: "'Poppins',sans-serif" }}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {reviewerActivity.map((r) => (
-                  <tr key={r.name} className="border-b border-border/50 last:border-0 hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 font-semibold">{r.name}</td>
+                  <tr key={r.name} className="transition-colors hover:bg-surface2" style={{ borderBottom: '1px solid #e4e4e8' }}>
+                    <td className="px-4 py-3 font-semibold text-[13px]" style={{ color: '#1a1a2e' }}>{r.name}</td>
                     <td className="px-4 py-3"><Tag>{r.total}</Tag></td>
-                    <td className="px-4 py-3 text-pass font-mono text-sm">{r.pass}</td>
-                    <td className="px-4 py-3 text-fail font-mono text-sm">{r.fail}</td>
-                    <td className="px-4 py-3 text-accent4 font-mono text-sm">{r.total - r.pass - r.fail}</td>
+                    <td className="px-4 py-3 font-semibold text-[13px]" style={{ color: '#16a34a' }}>{r.pass}</td>
+                    <td className="px-4 py-3 font-semibold text-[13px]" style={{ color: '#e11d48' }}>{r.fail}</td>
+                    <td className="px-4 py-3 font-semibold text-[13px]" style={{ color: '#d97706' }}>{r.total - r.pass - r.fail}</td>
                   </tr>
                 ))}
               </tbody>
