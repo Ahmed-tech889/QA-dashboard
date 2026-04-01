@@ -26,7 +26,7 @@ function PFButton({ label, selected, onClick, isPass, isNA }) {
 const EMPTY_FORM = {
   agentName: '', agentEmail: '', sid: '',
   callDate: new Date().toISOString().split('T')[0],
-  callLink: '', reviewer: '', notes: '', grade: '',
+  reviewer: '', notes: '', grade: '',
 }
 
 export default function ReviewCall({ state, addReview, addReviews, updateReview }) {
@@ -81,7 +81,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
       emitToast('Please score all criteria before saving', 'error'); return
     }
 
-    // Use the same weighted score logic as the store — 60% threshold
     const score  = calcWeightedScore(scores, state.criteria)
     const result = score === null ? 'pass' : score >= 60 ? 'pass' : 'fail'
     const passed = result === 'pass'
@@ -92,7 +91,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
         reviewer:   form.reviewer,
         notes:      form.notes,
         grade:      form.grade,
-        callLink:   form.callLink,
         agentName:  form.agentName,
         agentEmail: form.agentEmail,
         result,
@@ -159,7 +157,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
           waitDuration: row.waiting_time || '',
           talkDuration: row.talk_time    || '',
           wrapDuration: row.wrap_up_time || '',
-          callLink:  '',
           reviewer:  '',
           notes:     '',
           scores:    {},
@@ -175,10 +172,9 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
     reader.readAsText(file)
   }
 
-  // Live score calculation for the summary bar
-  const liveScore     = calcWeightedScore(scores, state.criteria)
-  const liveIsPassing = liveScore !== null && liveScore >= 60
-  const liveColor     = liveScore === null ? '#5a5a72' : liveIsPassing ? '#00d4aa' : '#ff6b6b'
+  const liveScore       = calcWeightedScore(scores, state.criteria)
+  const liveIsPassing   = liveScore !== null && liveScore >= 60
+  const liveColor       = liveScore === null ? '#5a5a72' : liveIsPassing ? '#00d4aa' : '#ff6b6b'
   const liveScoredCount = state.criteria.filter((c) => scores[c.id]).length
 
   return (
@@ -201,7 +197,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
             {/* Manual Tab */}
             {tab === 'manual' && (
               <div>
-                {/* Auto-fill notice */}
                 {autoFilled && (
                   <div className={`flex items-center gap-2 px-3.5 py-2.5 border rounded-lg text-xs mb-4 ${
                     matchedReviewId !== null
@@ -309,16 +304,6 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                     </select>
                   </Field>
 
-                  {/* Call Link */}
-                  <Field label="Call Link (optional)" full>
-                    <input
-                      type="url"
-                      value={form.callLink}
-                      onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
-                      placeholder="https://portal.example.com/calls/12345"
-                    />
-                  </Field>
-
                   {/* Notes */}
                   <Field label="Notes (optional)" full>
                     <textarea
@@ -329,7 +314,7 @@ export default function ReviewCall({ state, addReview, addReviews, updateReview 
                   </Field>
                 </div>
 
-                {/* Scoring — matches call log ReviewModal exactly */}
+                {/* Scoring */}
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="font-syne font-bold text-sm">QA Criteria Scoring</div>
