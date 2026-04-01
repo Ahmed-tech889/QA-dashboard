@@ -3,14 +3,12 @@ import { Badge, EmptyState, Modal, Panel, PanelHeader, Tag, Btn } from './ui'
 import { emitToast } from './ui'
 import { calcWeightedScore } from '../store/useStore'
 
-// Derive email from agentName if agentEmail is missing
 function deriveEmail(review) {
   if (review.agentEmail) return review.agentEmail
   if (!review.agentName) return ''
   return review.agentName.trim().toLowerCase().replace(/\s+/g, '.') + '@momentumegypt.com'
 }
 
-// ── Shared sub-components ────────────────────────────────────────────────────
 function PFButton({ label, selected, isPass, isNA, onClick }) {
   let style = ''
   if (selected) {
@@ -50,9 +48,10 @@ function InfoRow({ label, value, mono }) {
 
 // ── Scoring modal for pending calls ──────────────────────────────────────────
 function ReviewModal({ review, criteria, onSave, onClose }) {
-  const [scores, setScores]     = useState({})
+  const [scores, setScores]   = useState({})
   const [reviewer, setReviewer] = useState('')
-  const setScore = (id, val)    => setScores((s) => ({ ...s, [id]: val }))
+  const [notes, setNotes]     = useState('')
+  const setScore = (id, val)  => setScores((s) => ({ ...s, [id]: val }))
 
   const score     = calcWeightedScore(scores, criteria)
   const isPassing = score !== null && score >= 60
@@ -62,7 +61,7 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
   const handleSave = () => {
     if (!reviewer.trim()) { emitToast('Please enter your name as reviewer', 'error'); return }
     if (!allScored)       { emitToast('Please score all criteria before saving', 'error'); return }
-    onSave({ scores, reviewer: reviewer.trim() })
+    onSave({ scores, reviewer: reviewer.trim(), notes: notes.trim() })
   }
 
   const email = deriveEmail(review)
@@ -96,9 +95,20 @@ function ReviewModal({ review, criteria, onSave, onClose }) {
       )}
 
       {/* Reviewer */}
-      <div className="mb-5">
+      <div className="mb-4">
         <label className="block font-mono text-[11px] uppercase tracking-widest text-txt3 mb-1.5">Reviewer Name</label>
         <input value={reviewer} onChange={(e) => setReviewer(e.target.value)} placeholder="Your name" className="w-full" />
+      </div>
+
+      {/* Notes */}
+      <div className="mb-5">
+        <label className="block font-mono text-[11px] uppercase tracking-widest text-txt3 mb-1.5">Notes (optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Any observations about this call..."
+          className="w-full"
+        />
       </div>
 
       {/* Criteria */}
@@ -186,13 +196,15 @@ function DetailModal({ review, criteria, onClose }) {
         <InfoRow label="SID"       value={review.sid} mono />
         <InfoRow label="Queue"     value={review.queue} />
         <InfoRow label="Reviewer"  value={review.reviewer} />
-        {review.notes && (
-          <div className="col-span-2">
-            <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1">Notes</div>
-            <div className="text-sm text-txt2">{review.notes}</div>
-          </div>
-        )}
       </div>
+
+      {/* Notes — shown after scoring */}
+      {review.notes && (
+        <div className="mb-5 px-4 py-3.5 bg-accent/6 border border-accent/15 rounded-xl">
+          <div className="font-mono text-[11px] text-txt3 uppercase tracking-widest mb-1.5">Notes</div>
+          <div className="text-sm text-txt2 leading-relaxed">{review.notes}</div>
+        </div>
+      )}
 
       {hasDurations && (
         <div className="flex gap-2 flex-wrap mb-5">
@@ -250,11 +262,11 @@ function ConfirmModal({ review, onConfirm, onClose }) {
 
 // ── Main CallLog ─────────────────────────────────────────────────────────────
 export default function CallLog({ state, updateReview, deleteReview }) {
-  const [search,       setSearch]       = useState('')
-  const [filterResult, setFilterResult] = useState('')
-  const [filterAgent,  setFilterAgent]  = useState('')
-  const [detail,       setDetail]       = useState(null)
-  const [reviewing,    setReviewing]    = useState(null)
+  const [search,        setSearch]        = useState('')
+  const [filterResult,  setFilterResult]  = useState('')
+  const [filterAgent,   setFilterAgent]   = useState('')
+  const [detail,        setDetail]        = useState(null)
+  const [reviewing,     setReviewing]     = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const agents = [...new Set(state.reviews.map((r) => r.agentName))].filter(Boolean).sort()
@@ -346,7 +358,6 @@ export default function CallLog({ state, updateReview, deleteReview }) {
                       </td>
                       <td className="px-4 py-3"><Badge result={r.result} /></td>
 
-                      {/* Action cell: Review button for pending, delete for all */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2 justify-end">
                           {r.result === 'pending' && (
