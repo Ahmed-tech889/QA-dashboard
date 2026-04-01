@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { AttrBar, Badge, EmptyState, Panel, PanelHeader, Tag } from './ui'
+import EmailModal from './EmailModal'
 
 function StatCard({ label, value, color, accent }) {
   return (
@@ -8,57 +9,35 @@ function StatCard({ label, value, color, accent }) {
       <div className={`absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl bg-gradient-to-r ${accent} to-transparent`} />
       <div className="text-[10px] font-semibold tracking-[0.8px] uppercase mb-2.5"
         style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</div>
-      <div className="font-bold text-[30px] leading-none" style={{ color: color || '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
-        {value}
-      </div>
+      <div className="font-bold text-[30px] leading-none"
+        style={{ color: color || '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>{value}</div>
     </div>
   )
 }
 
 function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
   const inputStyle = {
-    background: '#f5f5f8',
-    border: '1px solid #d0d0d6',
-    borderRadius: 7,
-    padding: '3px 8px',
-    color: '#1a1a2e',
-    fontSize: 11,
-    fontFamily: "'Poppins',sans-serif",
-    outline: 'none',
-    width: 136,
-    height: 26,
+    background: '#f5f5f8', border: '1px solid #d0d0d6', borderRadius: 7,
+    padding: '3px 8px', color: '#1a1a2e', fontSize: 11,
+    fontFamily: "'Poppins',sans-serif", outline: 'none', width: 136, height: 26,
   }
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="flex items-center gap-1.5">
         <label className="text-[10px] font-semibold tracking-[1.5px] uppercase shrink-0"
           style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>From</label>
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => onFromChange(e.target.value)}
-          style={inputStyle}
-        />
+        <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)} style={inputStyle} />
       </div>
       <div className="flex items-center gap-1.5">
         <label className="text-[10px] font-semibold tracking-[1.5px] uppercase shrink-0"
           style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>To</label>
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => onToChange(e.target.value)}
-          style={inputStyle}
-        />
+        <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} style={inputStyle} />
       </div>
       {(from || to) && (
-        <button
-          onClick={onClear}
-          style={{
-            fontSize: 11, fontWeight: 600, padding: '3px 9px', height: 26,
-            borderRadius: 7, background: '#dcdce0', border: '1px solid #c8c8ce',
-            color: '#505060', cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
-          }}
-        >
+        <button onClick={onClear}
+          style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', height: 26, borderRadius: 7,
+            background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060',
+            cursor: 'pointer', fontFamily: "'Poppins',sans-serif" }}>
           Clear
         </button>
       )}
@@ -66,11 +45,10 @@ function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
   )
 }
 
-function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fails, passRate, failRate, agentStats, attrFails, reviewerActivity }) {
+function buildReportsPdfHtml({ rangeLabel, exportDate, reviews, scored, passes, fails, passRate, failRate, agentStats, attrFails, reviewerActivity }) {
   const agentRowsHTML = agentStats.map((a) => `
     <tr>
-      <td>${a.name}</td>
-      <td>${a.total}</td>
+      <td>${a.name}</td><td>${a.total}</td>
       <td style="color:${a.passRate >= 60 ? '#059669' : '#dc2626'};font-weight:700">${a.passRate}%</td>
       <td><span class="badge ${a.passRate >= 60 ? 'badge-pass' : 'badge-fail'}">${a.passRate >= 60 ? '✓ Pass' : '✗ Fail'}</span></td>
     </tr>`).join('')
@@ -86,49 +64,42 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
 
   const reviewerRowsHTML = reviewerActivity.map((r) => `
     <tr>
-      <td>${r.name}</td>
-      <td>${r.total}</td>
+      <td>${r.name}</td><td>${r.total}</td>
       <td style="color:#059669">${r.pass}</td>
       <td style="color:#dc2626">${r.fail}</td>
       <td style="color:#d97706">${r.total - r.pass - r.fail}</td>
     </tr>`).join('')
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8"/>
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
 <title>QA Report — ${rangeLabel}</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; padding: 40px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb; margin-bottom: 24px; }
-  .report-title { font-size: 24px; font-weight: 800; color: #111; }
-  .report-sub { font-size: 11px; color: #888; font-family: monospace; margin-top: 4px; }
-  .meta-chip { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-family: monospace; color: #555; margin-right: 6px; }
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
-  .stat-box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
-  .stat-val { font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
-  .stat-lbl { font-size: 10px; color: #888; font-family: monospace; text-transform: uppercase; letter-spacing: 0.8px; }
-  .section { margin-bottom: 28px; }
-  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: #111; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-family: monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #888; padding: 8px 12px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
-  td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
-  tr:last-child td { border-bottom: none; }
-  .badge { padding: 2px 10px; border-radius: 99px; font-size: 10px; font-family: monospace; font-weight: 700; }
-  .badge-pass { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
-  .badge-fail { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
-  .attr-row { margin-bottom: 10px; }
-  .attr-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
-  .attr-name { color: #374151; }
-  .attr-pct { font-family: monospace; font-weight: 700; }
-  .bar-track { height: 6px; background: #f3f4f6; border-radius: 99px; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 99px; }
-  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 10px; color: #aaa; font-family: monospace; }
-  @media print { body { padding: 24px; } }
-</style>
-</head>
-<body>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1a1a2e;font-size:13px;padding:40px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #e5e7eb;margin-bottom:24px}
+  .report-title{font-size:24px;font-weight:800}
+  .report-sub{font-size:11px;color:#888;margin-top:4px}
+  .meta-chip{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:3px 10px;font-size:11px;color:#555;margin-right:6px}
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+  .stat-box{border:1px solid #e5e7eb;border-radius:10px;padding:16px;background:#f9fafb}
+  .stat-val{font-size:30px;font-weight:800;line-height:1;margin-bottom:6px}
+  .stat-lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.8px}
+  .section{margin-bottom:28px}
+  .section-title{font-size:15px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #e5e7eb}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#888;padding:8px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+  td{padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13px}
+  tr:last-child td{border-bottom:none}
+  .badge{padding:2px 10px;border-radius:99px;font-size:10px;font-weight:700}
+  .badge-pass{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+  .badge-fail{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+  .attr-row{margin-bottom:10px}
+  .attr-header{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px}
+  .bar-track{height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:99px}
+  .footer{margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#aaa}
+  @media print{body{padding:24px}}
+</style></head><body>
   <div class="header">
     <div>
       <div class="report-title">QA Performance Report</div>
@@ -145,32 +116,26 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
     <div class="stat-box"><div class="stat-val" style="color:#dc2626">${failRate !== null ? failRate + '%' : '—'}</div><div class="stat-lbl">Fail Rate</div></div>
   </div>
   <div class="section">
-    <div class="section-title">📊 Agent Performance</div>
-    ${agentStats.length === 0 ? '<p style="color:#888">No agent data available.</p>' : `
-    <table>
-      <thead><tr><th>Agent</th><th>Total</th><th>Pass %</th><th>Status</th></tr></thead>
-      <tbody>${agentRowsHTML}</tbody>
-    </table>`}
+    <div class="section-title">Agent Performance</div>
+    ${agentStats.length === 0 ? '<p style="color:#888">No agent data.</p>' : `<table><thead><tr><th>Agent</th><th>Total</th><th>Pass %</th><th>Status</th></tr></thead><tbody>${agentRowsHTML}</tbody></table>`}
   </div>
   <div class="section">
-    <div class="section-title">⚠️ Worst Performing Criteria</div>
-    ${attrFails.length === 0 ? '<p style="color:#888">No criteria data available.</p>' : criteriaRowsHTML}
+    <div class="section-title">Worst Performing Criteria</div>
+    ${attrFails.length === 0 ? '<p style="color:#888">No criteria data.</p>' : criteriaRowsHTML}
   </div>
   <div class="section">
-    <div class="section-title">👥 Reviewer Activity</div>
-    ${reviewerActivity.length === 0 ? '<p style="color:#888">No reviewer data available.</p>' : `
-    <table>
-      <thead><tr><th>Reviewer</th><th>Total</th><th>Pass</th><th>Fail</th><th>Pending</th></tr></thead>
-      <tbody>${reviewerRowsHTML}</tbody>
-    </table>`}
+    <div class="section-title">Reviewer Activity</div>
+    ${reviewerActivity.length === 0 ? '<p style="color:#888">No reviewer data.</p>' : `<table><thead><tr><th>Reviewer</th><th>Total</th><th>Pass</th><th>Fail</th><th>Pending</th></tr></thead><tbody>${reviewerRowsHTML}</tbody></table>`}
   </div>
   <div class="footer">
     <span>QIS — Quality Intelligence System</span>
     <span>${rangeLabel} · ${exportDate}</span>
   </div>
-</body>
-</html>`
+</body></html>`
+}
 
+function exportReportsPDF(data) {
+  const html = buildReportsPdfHtml(data)
   const win = window.open('', '_blank')
   win.document.write(html)
   win.document.close()
@@ -178,8 +143,9 @@ function exportReportsPDF({ rangeLabel, exportDate, reviews, scored, passes, fai
 }
 
 export default function Reports({ state, getAgentStats, getCriteriaFailRates, getReviewerActivity }) {
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo,   setDateTo]   = useState('')
+  const [dateFrom,    setDateFrom]    = useState('')
+  const [dateTo,      setDateTo]      = useState('')
+  const [emailOpen,   setEmailOpen]   = useState(false)
 
   const filteredReviews = useMemo(() => {
     return state.reviews.filter((r) => {
@@ -238,8 +204,34 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
   const rangeLabel = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
   const exportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
+  const pdfData = { rangeLabel, exportDate, reviews: filteredReviews, scored, passes, fails, passRate, failRate, agentStats, attrFails, reviewerActivity }
+
+  const defaultEmailSubject = `QA Performance Report — ${rangeLabel}`
+  const defaultEmailMessage =
+`Hi,
+
+Please find the QA Performance Report below.
+
+Period: ${rangeLabel}
+Total Calls: ${filteredReviews.length}
+Pass Rate: ${passRate !== null ? passRate + '%' : '—'}
+Fail Rate: ${failRate !== null ? failRate + '%' : '—'}
+
+The full report is included below this message.
+
+Best regards,
+QA Team — Momentum Egypt`
+
+  const btnStyle = {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '5px 14px', height: 30, borderRadius: 8,
+    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    fontFamily: "'Poppins',sans-serif", transition: 'opacity 0.15s',
+  }
+
   return (
     <div className="p-7 animate-fadeIn">
+
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <DateRangeFilter
@@ -247,18 +239,27 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
           onFromChange={setDateFrom} onToChange={setDateTo}
           onClear={() => { setDateFrom(''); setDateTo('') }}
         />
-        <button
-          onClick={() => exportReportsPDF({ rangeLabel, exportDate, reviews: filteredReviews, scored, passes, fails, passRate, failRate, agentStats, attrFails, reviewerActivity })}
-          className="flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all hover:opacity-80"
-          style={{ padding: '5px 14px', height: 30, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}
-        >
-          ⬇ Export PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportReportsPDF(pdfData)}
+            className="hover:opacity-80"
+            style={{ ...btnStyle, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060' }}
+          >
+            ⬇ Export PDF
+          </button>
+          <button
+            onClick={() => setEmailOpen(true)}
+            className="hover:opacity-90"
+            style={{ ...btnStyle, background: '#2563eb', border: 'none', color: '#fff' }}
+          >
+            ✉ Send Email
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-3 gap-4 mb-7">
-        <StatCard label="Total Calls" value={filteredReviews.length} accent="from-accent"  />
+        <StatCard label="Total Calls" value={filteredReviews.length} accent="from-accent" />
         <StatCard label="Pass Rate"   value={passRate !== null ? passRate + '%' : '—'} color="#16a34a" accent="from-accent3" />
         <StatCard label="Fail Rate"   value={failRate !== null ? failRate + '%' : '—'} color="#e11d48" accent="from-accent2" />
       </div>
@@ -325,6 +326,14 @@ export default function Reports({ state, getAgentStats, getCriteriaFailRates, ge
             </table>
         }
       </Panel>
+
+      <EmailModal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        defaultSubject={defaultEmailSubject}
+        defaultMessage={defaultEmailMessage}
+        getPdfHtml={() => buildReportsPdfHtml(pdfData)}
+      />
     </div>
   )
 }
