@@ -11,62 +11,20 @@ const GRADIENTS = [
 ]
 
 const IMPROVEMENT_TIPS = [
-  {
-    keywords: ['introduce', 'brand'],
-    tip: 'The agent should open the call with a proper greeting, clearly introduce the brand and their name, and proactively offer assistance to set a professional tone.',
-  },
-  {
-    keywords: ['security', 'protocol'],
-    tip: 'The agent should ensure all required security verification steps are completed before disclosing any booking information to maintain compliance and data protection.',
-  },
-  {
-    keywords: ['empathy'],
-    tip: "The agent should acknowledge the customer's situation and express empathy using appropriate phrases to build rapport and show understanding.",
-  },
-  {
-    keywords: ['ownership'],
-    tip: 'The agent should take full ownership of the issue by reassuring support, asking relevant questions, and confirming understanding through effective recaps.',
-  },
-  {
-    keywords: ['additional help'],
-    tip: 'The agent should offer further assistance and close the call using proper branding to ensure a complete and professional customer experience.',
-  },
-  {
-    keywords: ['silence'],
-    tip: 'The agent should avoid prolonged silence by setting expectations beforehand or providing periodic updates during the call.',
-  },
-  {
-    keywords: ['refresh', 'call'],
-    tip: 'The agent should return to the call within the expected timeframe to update the customer and maintain engagement.',
-  },
-  {
-    keywords: ['negative language'],
-    tip: 'The agent should maintain a professional tone by avoiding negative language, not interrupting the customer, and refraining from blaming colleagues or systems.',
-  },
-  {
-    keywords: ['mila correctly'],
-    tip: "The agent should use Mila effectively by asking clear, relevant questions aligned with the customer's request to ensure accurate support.",
-  },
-  {
-    keywords: ['transfer', 'mila'],
-    tip: "The agent should follow Mila's guidance and transfer the call to Level 2 promptly when required.",
-  },
-  {
-    keywords: ['flag', 'slack'],
-    tip: "The agent should proactively escalate cases via Slack when necessary, even without Mila's instruction, to ensure proper follow-up.",
-  },
-  {
-    keywords: ['transparent', 'compliant'],
-    tip: 'The agent should provide accurate, complete, and compliant information while setting realistic expectations throughout the call.',
-  },
-  {
-    keywords: ['summarize', 'timeframe'],
-    tip: 'The agent should clearly summarize actions taken and next steps, including accurate timelines based on available guidance.',
-  },
-  {
-    keywords: ['fully resolved'],
-    tip: "The agent should aim for first-contact resolution by fully addressing the customer's request and minimizing the need for repeat contact.",
-  },
+  { keywords: ['introduce', 'brand'],       tip: 'The agent should open the call with a proper greeting, clearly introduce the brand and their name, and proactively offer assistance to set a professional tone.' },
+  { keywords: ['security', 'protocol'],     tip: 'The agent should ensure all required security verification steps are completed before disclosing any booking information to maintain compliance and data protection.' },
+  { keywords: ['empathy'],                  tip: "The agent should acknowledge the customer's situation and express empathy using appropriate phrases to build rapport and show understanding." },
+  { keywords: ['ownership'],                tip: 'The agent should take full ownership of the issue by reassuring support, asking relevant questions, and confirming understanding through effective recaps.' },
+  { keywords: ['additional help'],          tip: 'The agent should offer further assistance and close the call using proper branding to ensure a complete and professional customer experience.' },
+  { keywords: ['silence'],                  tip: 'The agent should avoid prolonged silence by setting expectations beforehand or providing periodic updates during the call.' },
+  { keywords: ['refresh', 'call'],          tip: 'The agent should return to the call within the expected timeframe to update the customer and maintain engagement.' },
+  { keywords: ['negative language'],        tip: 'The agent should maintain a professional tone by avoiding negative language, not interrupting the customer, and refraining from blaming colleagues or systems.' },
+  { keywords: ['mila correctly'],           tip: "The agent should use Mila effectively by asking clear, relevant questions aligned with the customer's request to ensure accurate support." },
+  { keywords: ['transfer', 'mila'],         tip: "The agent should follow Mila's guidance and transfer the call to Level 2 promptly when required." },
+  { keywords: ['flag', 'slack'],            tip: "The agent should proactively escalate cases via Slack when necessary, even without Mila's instruction, to ensure proper follow-up." },
+  { keywords: ['transparent', 'compliant'], tip: 'The agent should provide accurate, complete, and compliant information while setting realistic expectations throughout the call.' },
+  { keywords: ['summarize', 'timeframe'],   tip: 'The agent should clearly summarize actions taken and next steps, including accurate timelines based on available guidance.' },
+  { keywords: ['fully resolved'],           tip: "The agent should aim for first-contact resolution by fully addressing the customer's request and minimizing the need for repeat contact." },
 ]
 
 const DEFAULT_TIP = 'Review recorded calls with your team lead to identify specific areas for improvement.'
@@ -131,14 +89,71 @@ function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
         <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} style={{ width: 145 }} />
       </div>
       {(from || to) && (
-        <button
-          onClick={onClear}
-          className="px-2.5 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all bg-surface2 text-txt3 border-border hover:text-txt"
-        >
+        <button onClick={onClear} className="px-2.5 py-1 rounded-lg text-[11px] font-mono cursor-pointer border transition-all bg-surface2 text-txt3 border-border hover:text-txt">
           Clear
         </button>
       )}
     </div>
+  )
+}
+
+// ── Notes Modal ───────────────────────────────────────────────────────────────
+function NotesModal({ agent, agentReviews, onClose }) {
+  const [expandedSid, setExpandedSid] = useState(null)
+
+  const notedReviews = useMemo(() =>
+    agentReviews
+      .filter((r) => r.notes && r.notes.trim())
+      .sort((a, b) => new Date(b.callDate || b.reviewedAt) - new Date(a.callDate || a.reviewedAt)),
+    [agentReviews]
+  )
+
+  return (
+    <Modal open onClose={onClose} title="📝 Call Notes">
+      {notedReviews.length === 0 ? (
+        <div className="text-center py-10 text-txt3 text-sm">No notes recorded for this agent yet.</div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {notedReviews.map((r) => (
+            <div
+              key={r.id}
+              className="px-4 py-3.5 bg-surface2 border border-border rounded-xl hover:border-accent/30 transition-all"
+            >
+              {/* Header row: date + toggle SID */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[11px] text-txt3">{r.callDate}</span>
+                  {r.reviewer && (
+                    <span className="font-mono text-[10px] text-txt3 px-1.5 py-px bg-surface3 border border-border rounded">
+                      {r.reviewer}
+                    </span>
+                  )}
+                </div>
+                {r.sid && (
+                  <button
+                    onClick={() => setExpandedSid(expandedSid === r.id ? null : r.id)}
+                    className="font-mono text-[10px] px-2.5 py-1 rounded-lg border cursor-pointer transition-all bg-accent/8 text-accent border-accent/25 hover:bg-accent/15"
+                  >
+                    {expandedSid === r.id ? 'Hide SID' : 'Show SID'}
+                  </button>
+                )}
+              </div>
+
+              {/* SID reveal */}
+              {expandedSid === r.id && r.sid && (
+                <div className="mb-2 px-3 py-2 bg-surface3 border border-border rounded-lg">
+                  <span className="font-mono text-[10px] text-txt3 uppercase tracking-widest mr-2">SID</span>
+                  <span className="font-mono text-[12px] text-txt">{r.sid}</span>
+                </div>
+              )}
+
+              {/* Note text */}
+              <p className="text-[13px] text-txt2 leading-relaxed">{r.notes}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
   )
 }
 
@@ -216,7 +231,7 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
       <div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-bottom:5px">
         <div style="height:100%;border-radius:99px;width:${qualityScore ?? 0}%;background:${qsColor}"></div>
       </div>
-      <div style="font-size:10px;color:#6b7280">Passed attributes divided by (Passed + Failed) - N/A excluded</div>
+      <div style="font-size:10px;color:#6b7280">Passed attributes / (Passed + Failed) - N/A excluded</div>
     </div>
     <div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:14px 16px;background:#f9fafb">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -226,7 +241,7 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
       <div style="height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin-bottom:5px">
         <div style="height:100%;border-radius:99px;width:${passRate ?? 0}%;background:${prColor}"></div>
       </div>
-      <div style="font-size:10px;color:#6b7280">Passed calls divided by total scored calls</div>
+      <div style="font-size:10px;color:#6b7280">Passed calls / total scored calls</div>
     </div>
   </div>
   <h2>Most Common Mistakes</h2>
@@ -247,8 +262,9 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
 }
 
 function ScorecardModal({ agent, state, onClose }) {
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom]   = useState('')
+  const [dateTo, setDateTo]       = useState('')
+  const [showNotes, setShowNotes] = useState(false)
 
   const agentReviews = useMemo(() => {
     if (!agent) return []
@@ -256,16 +272,17 @@ function ScorecardModal({ agent, state, onClose }) {
       if (r.agentName !== agent.name) return false
       const d = new Date(r.callDate || r.reviewedAt)
       if (dateFrom && d < new Date(dateFrom)) return false
-      if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false
+      if (dateTo   && d > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
   }, [agent, state.reviews, dateFrom, dateTo])
 
-  const scored = agentReviews.filter((r) => r.result !== 'pending')
-  const passes = scored.filter((r) => r.result === 'pass').length
-  const fails = scored.filter((r) => r.result === 'fail').length
+  const scored       = agentReviews.filter((r) => r.result !== 'pending')
+  const passes       = scored.filter((r) => r.result === 'pass').length
+  const fails        = scored.filter((r) => r.result === 'fail').length
   const qualityScore = computeQualityScore(agentReviews)
-  const passRate = computePassRate(agentReviews)
+  const passRate     = computePassRate(agentReviews)
+  const notesCount   = agentReviews.filter((r) => r.notes && r.notes.trim()).length
 
   const mistakeMap = useMemo(() => {
     const map = {}
@@ -283,7 +300,7 @@ function ScorecardModal({ agent, state, onClose }) {
       .sort((a, b) => b.failRate - a.failRate)
   }, [agentReviews, state.criteria])
 
-  const mistakes = mistakeMap.filter((m) => m.failRate > 0)
+  const mistakes  = mistakeMap.filter((m) => m.failRate > 0)
   const strengths = mistakeMap.filter((m) => m.failRate === 0)
 
   const rangeLabel = dateFrom || dateTo
@@ -297,162 +314,172 @@ function ScorecardModal({ agent, state, onClose }) {
     exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel })
 
   return (
-    <Modal open onClose={onClose} title="">
-      <div className="flex items-center gap-4 mb-6 -mt-2">
-        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[gradientIndex]} grid place-items-center font-bold text-lg text-white shrink-0`}>
-          {initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-syne font-extrabold text-[20px] truncate">{agent.name}</div>
-          <div className="font-mono text-[11px] text-txt3">{agent.id || 'No ID'} · Agent Scorecard</div>
-        </div>
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="text-center">
-            <div
-              className="font-syne font-extrabold text-[28px] leading-none"
-              style={{ color: qualityScore === null ? '#5a5a72' : qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }}
-            >
-              {qualityScore !== null ? `${qualityScore}%` : '—'}
-            </div>
-            <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Quality Score</div>
+    <>
+      <Modal open onClose={onClose} title="">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-6 -mt-2">
+          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${GRADIENTS[gradientIndex]} grid place-items-center font-bold text-lg text-white shrink-0`}>
+            {initials}
           </div>
-          <div className="w-px h-10 bg-border" />
-          <div className="text-center">
-            <div
-              className="font-syne font-extrabold text-[28px] leading-none"
-              style={{ color: passRate === null ? '#5a5a72' : passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}
-            >
-              {passRate !== null ? `${passRate}%` : '—'}
-            </div>
-            <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Pass Rate</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-syne font-extrabold text-[20px] truncate">{agent.name}</div>
+            <div className="font-mono text-[11px] text-txt3">{agent.id || 'No ID'} · Agent Scorecard</div>
           </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-        <DateRangeFilter
-          from={dateFrom}
-          to={dateTo}
-          onFromChange={setDateFrom}
-          onToChange={setDateTo}
-          onClear={() => { setDateFrom(''); setDateTo('') }}
-        />
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40 shrink-0"
-        >
-          ⬇ Export PDF
-        </button>
-      </div>
-
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[
-          ['Total Calls', agentReviews.length, null],
-          ['Scored', scored.length, null],
-          ['Passed', passes, '#00d4aa'],
-          ['Failed', fails, '#ff6b6b'],
-        ].map(([label, value, color]) => (
-          <div key={label} className="flex flex-col items-center px-3 py-3 bg-surface2 border border-border rounded-xl">
-            <span className="font-syne font-extrabold text-[24px] leading-none mb-1" style={color ? { color } : {}}>
-              {value}
-            </span>
-            <span className="font-mono text-[10px] tracking-widest uppercase text-txt3 text-center">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      {agentReviews.length === 0 ? (
-        <div className="text-center py-8 text-txt3 text-sm">No reviews found for this period.</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <MetricBar
-              label="Quality Score"
-              value={qualityScore}
-              description="Passed attributes / (Passed + Failed) — N/A excluded"
-            />
-            <MetricBar
-              label="Pass Rate"
-              value={passRate}
-              description="Passed calls / total scored calls"
-            />
-          </div>
-
-          <div className="mb-5">
-            <div className="font-syne font-bold text-sm mb-3 flex items-center gap-2">
-              ⚠️ Most Common Mistakes
-              <span className="font-mono text-[10px] text-txt3 font-normal">(by fail %)</span>
-            </div>
-            {mistakes.length === 0 ? (
-              <div className="px-4 py-3 bg-pass/8 border border-pass/20 rounded-lg text-pass text-sm font-medium">
-                🎉 No failures recorded in this period.
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="text-center">
+              <div className="font-syne font-extrabold text-[28px] leading-none"
+                style={{ color: qualityScore === null ? '#5a5a72' : qualityScore >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+                {qualityScore !== null ? `${qualityScore}%` : '—'}
               </div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {mistakes.map((m, i) => (
-                  <div key={m.name} className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-md bg-surface3 border border-border grid place-items-center font-mono text-[9px] text-txt3 shrink-0">
-                          {i + 1}
-                        </span>
-                        <span className="text-[13px] font-medium">{m.name}</span>
-                        {m.cat && <span className="font-mono text-[10px] text-txt3">{m.cat}</span>}
+              <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Quality Score</div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="text-center">
+              <div className="font-syne font-extrabold text-[28px] leading-none"
+                style={{ color: passRate === null ? '#5a5a72' : passRate >= 60 ? '#00d4aa' : '#ff6b6b' }}>
+                {passRate !== null ? `${passRate}%` : '—'}
+              </div>
+              <div className="font-mono text-[9px] text-txt3 uppercase tracking-widest mt-0.5">Pass Rate</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Toolbar: date filter + notes button + export */}
+        <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+          <DateRangeFilter
+            from={dateFrom}
+            to={dateTo}
+            onFromChange={setDateFrom}
+            onToChange={setDateTo}
+            onClear={() => { setDateFrom(''); setDateTo('') }}
+          />
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Notes button */}
+            <button
+              onClick={() => setShowNotes(true)}
+              className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40"
+            >
+              📝 Notes
+              {notesCount > 0 && (
+                <span className="ml-0.5 px-1.5 py-px rounded-full bg-accent text-white font-mono text-[9px]">
+                  {notesCount}
+                </span>
+              )}
+            </button>
+            {/* Export PDF */}
+            <button onClick={handleExport}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-medium font-dm cursor-pointer border transition-all bg-surface2 text-txt2 border-border hover:text-txt hover:border-accent/40">
+              ⬇ Export PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Stat pills */}
+        <div className="grid grid-cols-4 gap-3 mb-5">
+          {[
+            ['Total Calls', agentReviews.length, null],
+            ['Scored', scored.length, null],
+            ['Passed', passes, '#00d4aa'],
+            ['Failed', fails, '#ff6b6b'],
+          ].map(([label, value, color]) => (
+            <div key={label} className="flex flex-col items-center px-3 py-3 bg-surface2 border border-border rounded-xl">
+              <span className="font-syne font-extrabold text-[24px] leading-none mb-1" style={color ? { color } : {}}>
+                {value}
+              </span>
+              <span className="font-mono text-[10px] tracking-widest uppercase text-txt3 text-center">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {agentReviews.length === 0 ? (
+          <div className="text-center py-8 text-txt3 text-sm">No reviews found for this period.</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <MetricBar label="Quality Score" value={qualityScore} description="Passed attributes / (Passed + Failed) — N/A excluded" />
+              <MetricBar label="Pass Rate"     value={passRate}     description="Passed calls / total scored calls" />
+            </div>
+
+            <div className="mb-5">
+              <div className="font-syne font-bold text-sm mb-3 flex items-center gap-2">
+                ⚠️ Most Common Mistakes
+                <span className="font-mono text-[10px] text-txt3 font-normal">(by fail %)</span>
+              </div>
+              {mistakes.length === 0 ? (
+                <div className="px-4 py-3 bg-pass/8 border border-pass/20 rounded-lg text-pass text-sm font-medium">
+                  🎉 No failures recorded in this period.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {mistakes.map((m, i) => (
+                    <div key={m.name} className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-md bg-surface3 border border-border grid place-items-center font-mono text-[9px] text-txt3 shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="text-[13px] font-medium">{m.name}</span>
+                          {m.cat && <span className="font-mono text-[10px] text-txt3">{m.cat}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-mono text-[11px] text-txt3">{m.fail}/{m.total}</span>
+                          <span className="font-mono text-xs font-bold min-w-[40px] text-right"
+                            style={{ color: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}>
+                            {m.failRate}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono text-[11px] text-txt3">{m.fail}/{m.total}</span>
-                        <span
-                          className="font-mono text-xs font-bold min-w-[40px] text-right"
-                          style={{ color: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}
-                        >
-                          {m.failRate}%
-                        </span>
+                      <div className="h-1.5 bg-surface3 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full score-bar-fill"
+                          style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }} />
                       </div>
                     </div>
-                    <div className="h-1.5 bg-surface3 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full score-bar-fill"
-                        style={{ width: `${m.failRate}%`, background: m.failRate > 50 ? '#ff6b6b' : '#ffa94d' }}
-                      />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {mistakes.length > 0 && (
+              <div className="mb-5">
+                <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
+                <div className="flex flex-col gap-2">
+                  {mistakes.slice(0, 4).map((m) => (
+                    <div key={m.name} className="flex gap-3 px-4 py-3 bg-accent/6 border border-accent/15 rounded-lg">
+                      <span className="text-accent text-sm shrink-0 mt-px">→</span>
+                      <div>
+                        <div className="text-[12px] font-semibold text-txt mb-0.5">{m.name}</div>
+                        <div className="text-[12px] text-txt2 leading-relaxed">{getTip(m.name)}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-          </div>
 
-          {mistakes.length > 0 && (
-            <div className="mb-5">
-              <div className="font-syne font-bold text-sm mb-3">💡 Improvement Opportunities</div>
-              <div className="flex flex-col gap-2">
-                {mistakes.slice(0, 4).map((m) => (
-                  <div key={m.name} className="flex gap-3 px-4 py-3 bg-accent/6 border border-accent/15 rounded-lg">
-                    <span className="text-accent text-sm shrink-0 mt-px">→</span>
-                    <div>
-                      <div className="text-[12px] font-semibold text-txt mb-0.5">{m.name}</div>
-                      <div className="text-[12px] text-txt2 leading-relaxed">{getTip(m.name)}</div>
-                    </div>
-                  </div>
-                ))}
+            {strengths.length > 0 && (
+              <div>
+                <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
+                <div className="flex flex-wrap gap-2">
+                  {strengths.map((s) => (
+                    <span key={s.name} className="px-3 py-1 rounded-full bg-pass/10 border border-pass/20 text-pass font-mono text-[11px]">
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </>
+        )}
+      </Modal>
 
-          {strengths.length > 0 && (
-            <div>
-              <div className="font-syne font-bold text-sm mb-3">✅ Strengths</div>
-              <div className="flex flex-wrap gap-2">
-                {strengths.map((s) => (
-                  <span key={s.name} className="px-3 py-1 rounded-full bg-pass/10 border border-pass/20 text-pass font-mono text-[11px]">
-                    {s.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+      {showNotes && (
+        <NotesModal
+          agent={agent}
+          agentReviews={agentReviews}
+          onClose={() => setShowNotes(false)}
+        />
       )}
-    </Modal>
+    </>
   )
 }
 
@@ -462,10 +489,8 @@ function AgentCard({ agent, index, onClick }) {
   const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div
-      onClick={onClick}
-      className="bg-surface border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-2xl transition-all duration-200"
-    >
+    <div onClick={onClick}
+      className="bg-surface border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 hover:shadow-2xl transition-all duration-200">
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} grid place-items-center font-bold text-sm text-white shrink-0`}>
           {initials}
@@ -474,9 +499,7 @@ function AgentCard({ agent, index, onClick }) {
           <div className="font-syne font-bold text-sm truncate">{agent.name}</div>
           <div className="font-mono text-[10px] text-txt3">{agent.id || 'No ID'}</div>
         </div>
-        <span className="font-mono text-[10px] text-txt3 border border-border rounded px-1.5 py-0.5 bg-surface2 shrink-0">
-          View →
-        </span>
+        <span className="font-mono text-[10px] text-txt3 border border-border rounded px-1.5 py-0.5 bg-surface2 shrink-0">View →</span>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -487,10 +510,7 @@ function AgentCard({ agent, index, onClick }) {
           </span>
         </div>
         <div className="h-1 bg-surface3 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full score-bar-fill"
-            style={{ width: `${agent.qualityScore ?? 0}%`, background: qsColor }}
-          />
+          <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.qualityScore ?? 0}%`, background: qsColor }} />
         </div>
 
         <div className="flex justify-between items-center text-xs mt-1">
@@ -498,10 +518,7 @@ function AgentCard({ agent, index, onClick }) {
           <span className="font-mono font-bold" style={{ color: prColor }}>{agent.passRate}%</span>
         </div>
         <div className="h-1 bg-surface3 rounded-full overflow-hidden mb-1">
-          <div
-            className="h-full rounded-full score-bar-fill"
-            style={{ width: `${agent.passRate}%`, background: prColor }}
-          />
+          <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.passRate}%`, background: prColor }} />
         </div>
 
         <div className="pt-1 border-t border-border/50 flex flex-col gap-1.5 mt-1">
