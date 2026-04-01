@@ -28,11 +28,18 @@ function QISLogo({ height }) {
           </svg>
         </div>
         <div>
-          <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 17, color: '#1a1a2e', letterSpacing: 0.5 }}>
+          <div style={{
+            fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+            fontSize: 17, color: '#1a1a2e', letterSpacing: 0.5,
+          }}>
             QIS
           </div>
-          <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 400, fontSize: 8, color: '#787890', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 1 }}>
-            Intelligence System
+          <div style={{
+            fontFamily: "'Poppins',sans-serif", fontWeight: 400,
+            fontSize: 7, color: '#787890', letterSpacing: 1.2,
+            textTransform: 'uppercase', marginTop: 1, whiteSpace: 'nowrap',
+          }}>
+            Quality Intelligence System
           </div>
         </div>
       </div>
@@ -61,15 +68,15 @@ export default function Sidebar({ activePage, onNavigate, headerHeight }) {
                 onClick={() => onNavigate(item.id)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer text-[13px] mb-0.5 transition-all text-left border"
                 style={{
-                  fontFamily: "'Poppins',sans-serif",
-                  background:   isActive ? '#f5f5f8' : 'transparent',
-                  color:        isActive ? '#2563eb'  : '#505060',
-                  borderColor:  isActive ? '#c8d4f0'  : 'transparent',
-                  fontWeight:   isActive ? 600 : 400,
-                  boxShadow:    isActive ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                  fontFamily:  "'Poppins',sans-serif",
+                  background:  isActive ? '#f5f5f8' : 'transparent',
+                  color:       isActive ? '#2563eb'  : '#505060',
+                  borderColor: isActive ? '#c8d4f0'  : 'transparent',
+                  fontWeight:  isActive ? 600 : 400,
+                  boxShadow:   isActive ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                <div className="w-[7px] h-[7px] rounded-full shrink-0"
+                <div className="w-[7px] h-[7px] rounded-full shrink-0 transition-colors"
                   style={{ background: isActive ? '#2563eb' : item.dot }} />
                 {item.label}
               </button>
