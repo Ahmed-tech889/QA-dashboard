@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { EmptyState, Modal } from './ui'
+import EmailModal from './EmailModal'
 
 const GRADIENTS = [
   'from-[#6366f1] to-[#8b5cf6]',
@@ -31,9 +32,7 @@ const DEFAULT_TIP = 'Review recorded calls with your team lead to identify speci
 
 function getTip(name) {
   const lower = name.trim().toLowerCase()
-  const found = IMPROVEMENT_TIPS.find((entry) =>
-    entry.keywords.every((kw) => lower.includes(kw))
-  )
+  const found = IMPROVEMENT_TIPS.find((entry) => entry.keywords.every((kw) => lower.includes(kw)))
   return found ? found.tip : DEFAULT_TIP
 }
 
@@ -62,14 +61,10 @@ function MetricBar({ label, value, description }) {
     <div className="px-4 py-3.5 rounded-xl" style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
       <div className="flex justify-between items-center mb-2">
         <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</span>
-        <span className="text-xs font-bold" style={{ color, fontFamily: "'Poppins',sans-serif" }}>
-          {value !== null ? `${value}%` : '—'}
-        </span>
+        <span className="text-xs font-bold" style={{ color, fontFamily: "'Poppins',sans-serif" }}>{value !== null ? `${value}%` : '—'}</span>
       </div>
       <div className="h-1.5 rounded-full overflow-hidden relative mb-1.5" style={{ background: '#dcdce0' }}>
-        {value !== null && (
-          <div className="h-full rounded-full score-bar-fill" style={{ width: `${value}%`, background: color }} />
-        )}
+        {value !== null && <div className="h-full rounded-full score-bar-fill" style={{ width: `${value}%`, background: color }} />}
         <div className="absolute top-0 bottom-0 w-px" style={{ left: '60%', background: '#a0a0b0' }} />
       </div>
       <div className="text-[9px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{description}</div>
@@ -79,16 +74,9 @@ function MetricBar({ label, value, description }) {
 
 function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
   const inputStyle = {
-    background: '#f5f5f8',
-    border: '1px solid #d0d0d6',
-    borderRadius: 7,
-    padding: '3px 8px',
-    color: '#1a1a2e',
-    fontSize: 11,
-    fontFamily: "'Poppins',sans-serif",
-    outline: 'none',
-    width: 136,
-    height: 26,
+    background: '#f5f5f8', border: '1px solid #d0d0d6', borderRadius: 7,
+    padding: '3px 8px', color: '#1a1a2e', fontSize: 11,
+    fontFamily: "'Poppins',sans-serif", outline: 'none', width: 136, height: 26,
   }
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -103,14 +91,10 @@ function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
         <input type="date" value={to} onChange={(e) => onToChange(e.target.value)} style={inputStyle} />
       </div>
       {(from || to) && (
-        <button
-          onClick={onClear}
-          style={{
-            fontSize: 11, fontWeight: 600, padding: '3px 9px', height: 26,
-            borderRadius: 7, background: '#dcdce0', border: '1px solid #c8c8ce',
-            color: '#505060', cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
-          }}
-        >
+        <button onClick={onClear}
+          style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', height: 26, borderRadius: 7,
+            background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060',
+            cursor: 'pointer', fontFamily: "'Poppins',sans-serif" }}>
           Clear
         </button>
       )}
@@ -118,16 +102,14 @@ function DateRangeFilter({ from, to, onFromChange, onToChange, onClear }) {
   )
 }
 
-function NotesModal({ agent, agentReviews, onClose }) {
+function NotesModal({ agentReviews, onClose }) {
   const [expandedSid, setExpandedSid] = useState(null)
-
   const notedReviews = useMemo(() =>
     agentReviews
       .filter((r) => r.notes && r.notes.trim())
       .sort((a, b) => new Date(b.callDate || b.reviewedAt) - new Date(a.callDate || a.reviewedAt)),
     [agentReviews]
   )
-
   return (
     <Modal open onClose={onClose} title="Call Notes">
       {notedReviews.length === 0 ? (
@@ -135,8 +117,7 @@ function NotesModal({ agent, agentReviews, onClose }) {
       ) : (
         <div className="flex flex-col gap-3">
           {notedReviews.map((r) => (
-            <div key={r.id} className="px-4 py-3.5 rounded-xl transition-all"
-              style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
+            <div key={r.id} className="px-4 py-3.5 rounded-xl" style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <span className="text-[11px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{r.callDate}</span>
@@ -148,11 +129,9 @@ function NotesModal({ agent, agentReviews, onClose }) {
                   )}
                 </div>
                 {r.sid && (
-                  <button
-                    onClick={() => setExpandedSid(expandedSid === r.id ? null : r.id)}
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-all"
-                    style={{ background: '#e8f0ff', color: '#2563eb', border: '1px solid #c8d4f0', fontFamily: "'Poppins',sans-serif" }}
-                  >
+                  <button onClick={() => setExpandedSid(expandedSid === r.id ? null : r.id)}
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-lg cursor-pointer"
+                    style={{ background: '#e8f0ff', color: '#2563eb', border: '1px solid #c8d4f0', fontFamily: "'Poppins',sans-serif" }}>
                     {expandedSid === r.id ? 'Hide SID' : 'Show SID'}
                   </button>
                 )}
@@ -172,7 +151,7 @@ function NotesModal({ agent, agentReviews, onClose }) {
   )
 }
 
-function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel }) {
+function buildAgentPdfHtml({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel }) {
   const exportDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   const qsColor = qualityScore === null ? '#9ca3af' : qualityScore >= 60 ? '#059669' : '#dc2626'
   const prColor = passRate === null ? '#9ca3af' : passRate >= 60 ? '#059669' : '#dc2626'
@@ -200,7 +179,7 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
     <div style="font-size:13px;font-weight:700;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6">Strengths</div>
     <div>${strengths.map((s) => `<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;font-size:10px;margin:2px">${s.name}</span>`).join('')}</div>`
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <title>Agent Scorecard - ${agent.name}</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
@@ -243,17 +222,13 @@ function exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualitySco
     <span>Generated: ${exportDate} · Period: ${rangeLabel}</span>
   </div>
 </body></html>`
-
-  const win = window.open('', '_blank')
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => { win.focus(); win.print() }
 }
 
 function ScorecardModal({ agent, state, onClose }) {
-  const [dateFrom, setDateFrom]   = useState('')
-  const [dateTo, setDateTo]       = useState('')
-  const [showNotes, setShowNotes] = useState(false)
+  const [dateFrom,   setDateFrom]   = useState('')
+  const [dateTo,     setDateTo]     = useState('')
+  const [showNotes,  setShowNotes]  = useState(false)
+  const [emailOpen,  setEmailOpen]  = useState(false)
 
   const agentReviews = useMemo(() => {
     if (!agent) return []
@@ -292,10 +267,34 @@ function ScorecardModal({ agent, state, onClose }) {
   const mistakes  = mistakeMap.filter((m) => m.failRate > 0)
   const strengths = mistakeMap.filter((m) => m.failRate === 0)
 
-  const rangeLabel = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
+  const rangeLabel   = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
+  const initials     = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+  const gradIdx      = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
+  const pdfData      = { agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel }
 
-  const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-  const gradIdx  = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
+  const defaultEmailSubject = `Agent Scorecard — ${agent.name} — ${rangeLabel}`
+  const defaultEmailMessage =
+`Hi,
+
+Please find the QA scorecard for ${agent.name} below.
+
+Period: ${rangeLabel}
+Quality Score: ${qualityScore !== null ? qualityScore + '%' : '—'}
+Pass Rate: ${passRate !== null ? passRate + '%' : '—'}
+Total Calls Reviewed: ${agentReviews.length}
+Passed: ${passes} | Failed: ${fails}
+
+The full scorecard is included below this message.
+
+Best regards,
+QA Team — Momentum Egypt`
+
+  const toolbarBtnStyle = {
+    display: 'flex', alignItems: 'center', gap: 5,
+    padding: '3px 12px', height: 26, borderRadius: 7,
+    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    fontFamily: "'Poppins',sans-serif", transition: 'opacity 0.15s',
+  }
 
   return (
     <>
@@ -311,14 +310,16 @@ function ScorecardModal({ agent, state, onClose }) {
           </div>
           <div className="flex items-center gap-4 shrink-0">
             <div className="text-center">
-              <div className="font-bold text-[28px] leading-none" style={{ color: qualityScore === null ? '#8888a0' : qualityScore >= 60 ? '#16a34a' : '#e11d48', fontFamily: "'Poppins',sans-serif" }}>
+              <div className="font-bold text-[28px] leading-none"
+                style={{ color: qualityScore === null ? '#8888a0' : qualityScore >= 60 ? '#16a34a' : '#e11d48', fontFamily: "'Poppins',sans-serif" }}>
                 {qualityScore !== null ? `${qualityScore}%` : '—'}
               </div>
               <div className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: '#8888a0' }}>Quality Score</div>
             </div>
             <div className="w-px h-10" style={{ background: '#d0d0d6' }} />
             <div className="text-center">
-              <div className="font-bold text-[28px] leading-none" style={{ color: passRate === null ? '#8888a0' : passRate >= 60 ? '#16a34a' : '#e11d48', fontFamily: "'Poppins',sans-serif" }}>
+              <div className="font-bold text-[28px] leading-none"
+                style={{ color: passRate === null ? '#8888a0' : passRate >= 60 ? '#16a34a' : '#e11d48', fontFamily: "'Poppins',sans-serif" }}>
                 {passRate !== null ? `${passRate}%` : '—'}
               </div>
               <div className="text-[9px] uppercase tracking-widest mt-0.5" style={{ color: '#8888a0' }}>Pass Rate</div>
@@ -334,11 +335,8 @@ function ScorecardModal({ agent, state, onClose }) {
             onClear={() => { setDateFrom(''); setDateTo('') }}
           />
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setShowNotes(true)}
-              className="relative flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all hover:opacity-80"
-              style={{ padding: '3px 12px', height: 26, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}
-            >
+            <button onClick={() => setShowNotes(true)} className="relative hover:opacity-80"
+              style={{ ...toolbarBtnStyle, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060' }}>
               Notes
               {notesCount > 0 && (
                 <span className="px-1.5 py-px rounded-full text-white font-semibold text-[9px]"
@@ -348,11 +346,20 @@ function ScorecardModal({ agent, state, onClose }) {
               )}
             </button>
             <button
-              onClick={() => exportAgentPDF({ agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel })}
-              className="flex items-center gap-1.5 rounded-lg text-[12px] font-semibold cursor-pointer transition-all hover:opacity-80"
-              style={{ padding: '3px 12px', height: 26, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060', fontFamily: "'Poppins',sans-serif" }}
-            >
+              onClick={() => {
+                const html = buildAgentPdfHtml(pdfData)
+                const win = window.open('', '_blank')
+                win.document.write(html)
+                win.document.close()
+                win.onload = () => { win.focus(); win.print() }
+              }}
+              className="hover:opacity-80"
+              style={{ ...toolbarBtnStyle, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060' }}>
               ⬇ Export PDF
+            </button>
+            <button onClick={() => setEmailOpen(true)} className="hover:opacity-90"
+              style={{ ...toolbarBtnStyle, background: '#2563eb', border: 'none', color: '#fff' }}>
+              ✉ Email
             </button>
           </div>
         </div>
@@ -361,10 +368,10 @@ function ScorecardModal({ agent, state, onClose }) {
         <div className="grid grid-cols-4 gap-3 mb-5">
           {[['Total Calls', agentReviews.length, null], ['Scored', scored.length, null], ['Passed', passes, '#16a34a'], ['Failed', fails, '#e11d48']].map(([label, value, color]) => (
             <div key={label} className="flex flex-col items-center px-3 py-3 rounded-xl" style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
-              <span className="font-bold text-[24px] leading-none mb-1" style={color ? { color, fontFamily: "'Poppins',sans-serif" } : { color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
-                {value}
-              </span>
-              <span className="text-[10px] uppercase tracking-widest text-center" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</span>
+              <span className="font-bold text-[24px] leading-none mb-1"
+                style={{ color: color || '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>{value}</span>
+              <span className="text-[10px] uppercase tracking-widest text-center"
+                style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>{label}</span>
             </div>
           ))}
         </div>
@@ -384,7 +391,8 @@ function ScorecardModal({ agent, state, onClose }) {
                 <span className="text-[10px] font-normal" style={{ color: '#8888a0' }}>(by fail %)</span>
               </div>
               {mistakes.length === 0 ? (
-                <div className="px-4 py-3 rounded-lg text-sm font-semibold" style={{ background: '#e6f9ee', border: '1px solid #a8ecc0', color: '#16a34a' }}>
+                <div className="px-4 py-3 rounded-lg text-sm font-semibold"
+                  style={{ background: '#e6f9ee', border: '1px solid #a8ecc0', color: '#16a34a' }}>
                   No failures recorded in this period.
                 </div>
               ) : (
@@ -423,7 +431,8 @@ function ScorecardModal({ agent, state, onClose }) {
                 <div className="font-bold text-sm mb-3" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>Improvement Opportunities</div>
                 <div className="flex flex-col gap-2">
                   {mistakes.slice(0, 4).map((m) => (
-                    <div key={m.name} className="flex gap-3 px-4 py-3 rounded-lg" style={{ background: '#e8f0ff', border: '1px solid #c8d4f0' }}>
+                    <div key={m.name} className="flex gap-3 px-4 py-3 rounded-lg"
+                      style={{ background: '#e8f0ff', border: '1px solid #c8d4f0' }}>
                       <span className="text-sm shrink-0 mt-px" style={{ color: '#2563eb' }}>→</span>
                       <div>
                         <div className="text-[12px] font-semibold mb-0.5" style={{ color: '#1a1a2e' }}>{m.name}</div>
@@ -452,21 +461,26 @@ function ScorecardModal({ agent, state, onClose }) {
         )}
       </Modal>
 
-      {showNotes && (
-        <NotesModal agent={agent} agentReviews={agentReviews} onClose={() => setShowNotes(false)} />
-      )}
+      {showNotes && <NotesModal agentReviews={agentReviews} onClose={() => setShowNotes(false)} />}
+
+      <EmailModal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        defaultSubject={defaultEmailSubject}
+        defaultMessage={defaultEmailMessage}
+        getPdfHtml={() => buildAgentPdfHtml(pdfData)}
+      />
     </>
   )
 }
 
 function AgentCard({ agent, index, onClick }) {
-  const qsColor = agent.qualityScore === null ? '#8888a0' : agent.qualityScore >= 60 ? '#16a34a' : '#e11d48'
-  const prColor = agent.passRate >= 60 ? '#16a34a' : '#e11d48'
+  const qsColor  = agent.qualityScore === null ? '#8888a0' : agent.qualityScore >= 60 ? '#16a34a' : '#e11d48'
+  const prColor  = agent.passRate >= 60 ? '#16a34a' : '#e11d48'
   const initials = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <div onClick={onClick}
-      className="rounded-xl p-5 cursor-pointer card-lift transition-all duration-200"
+    <div onClick={onClick} className="rounded-xl p-5 cursor-pointer card-lift transition-all duration-200"
       style={{ background: '#f5f5f8', border: '1px solid #d0d0d6', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
       <div className="flex items-center gap-3 mb-4">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${GRADIENTS[index % GRADIENTS.length]} grid place-items-center font-bold text-sm text-white shrink-0`}>
@@ -492,7 +506,6 @@ function AgentCard({ agent, index, onClick }) {
         <div className="h-1 rounded-full overflow-hidden" style={{ background: '#dcdce0' }}>
           <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.qualityScore ?? 0}%`, background: qsColor }} />
         </div>
-
         <div className="flex justify-between items-center text-xs mt-1">
           <span style={{ color: '#8888a0' }}>Pass Rate</span>
           <span className="font-bold" style={{ color: prColor, fontFamily: "'Poppins',sans-serif" }}>{agent.passRate}%</span>
@@ -500,7 +513,6 @@ function AgentCard({ agent, index, onClick }) {
         <div className="h-1 rounded-full overflow-hidden mb-1" style={{ background: '#dcdce0' }}>
           <div className="h-full rounded-full score-bar-fill" style={{ width: `${agent.passRate}%`, background: prColor }} />
         </div>
-
         <div className="pt-1 flex flex-col gap-1.5 mt-1" style={{ borderTop: '1px solid #dcdce0' }}>
           <div className="flex justify-between text-xs">
             <span style={{ color: '#8888a0' }}>Total Reviews</span>
