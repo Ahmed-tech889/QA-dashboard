@@ -79,16 +79,16 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-bg text-txt font-dm">
+    <div className="min-h-screen bg-bg text-txt font-poppins">
       <Sidebar activePage={page} onNavigate={setPage} headerHeight={HEADER_HEIGHT} />
       <main className="ml-[220px] min-h-screen flex flex-col">
         <div
           className="sticky top-0 z-50 px-8 bg-surface border-b border-border flex items-center justify-between"
           style={{ height: HEADER_HEIGHT }}
         >
-          <h1 className="font-syne font-bold text-[18px]">{PAGE_TITLES[page]}</h1>
+          <h1 className="font-poppins font-bold text-[17px] text-txt">{PAGE_TITLES[page]}</h1>
           <div className="flex items-center gap-2.5">
-            <Btn variant="ghost" onClick={() => setPage('calls')}>📁 Call Log</Btn>
+            <Btn variant="ghost" onClick={() => setPage('calls')}>Call Log</Btn>
             <Btn onClick={() => setPage('review')}>+ New Review</Btn>
           </div>
         </div>
