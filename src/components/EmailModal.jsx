@@ -47,11 +47,11 @@ async function generatePdfBase64(htmlString) {
 }
 
 export default function EmailModal({ open, onClose, defaultSubject, defaultMessage, getPdfHtml, filename = 'QIS_Report.pdf' }) {
-  const [to,      setTo]      = useState('')
-  const [subject, setSubject] = useState(defaultSubject || '')
-  const [message, setMessage] = useState(defaultMessage || '')
-  const [status,  setStatus]  = useState('idle')
-  const [errMsg,  setErrMsg]  = useState('')
+  const [to,       setTo]       = useState('')
+  const [subject,  setSubject]  = useState(defaultSubject || '')
+  const [message,  setMessage]  = useState(defaultMessage || '')
+  const [status,   setStatus]   = useState('idle')
+  const [errMsg,   setErrMsg]   = useState('')
   const [progress, setProgress] = useState('')
 
   if (!open) return null
@@ -135,7 +135,8 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between"
           style={{ borderBottom: '1px solid #dcdce0', background: '#efeff2', borderRadius: '16px 16px 0 0' }}>
-          <span className="font-bold text-[15px]" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
+          <span className="font-bold text-[15px]"
+            style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
             Send Report via Email
           </span>
           <button onClick={handleClose} disabled={isBusy}
@@ -148,7 +149,6 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
         {/* Body */}
         <div className="px-6 py-5 flex flex-col gap-4">
 
-          {/* To */}
           <div>
             <label style={labelStyle}>To</label>
             <input
@@ -163,7 +163,6 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
             />
           </div>
 
-          {/* Subject */}
           <div>
             <label style={labelStyle}>Subject</label>
             <input
@@ -177,7 +176,6 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
             />
           </div>
 
-          {/* Message */}
           <div>
             <label style={labelStyle}>Message</label>
             <textarea
@@ -192,20 +190,20 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
           </div>
 
           {/* Attachment badge */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-              style={{ background: '#ebebee', border: '1px solid #d0d0d6', display: 'inline-flex' }}>
-              <span style={{ fontSize: 14 }}>📎</span>
-              <span className="text-[11px] font-semibold" style={{ color: '#505060', fontFamily: "'Poppins',sans-serif" }}>
-                {filename}
-              </span>
-              <span className="text-[10px]" style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>
-                · PDF · auto-generated
-              </span>
-            </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+            style={{ background: '#ebebee', border: '1px solid #d0d0d6', display: 'inline-flex', alignSelf: 'flex-start' }}>
+            <span style={{ fontSize: 14 }}>📎</span>
+            <span className="text-[11px] font-semibold"
+              style={{ color: '#505060', fontFamily: "'Poppins',sans-serif" }}>
+              {filename}
+            </span>
+            <span className="text-[10px]"
+              style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>
+              · PDF · auto-generated
+            </span>
           </div>
 
-          {/* Progress indicator */}
+          {/* Progress */}
           {isBusy && progress && (
             <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg"
               style={{ background: '#e8f0ff', border: '1px solid #c8d4f0' }}>
@@ -214,7 +212,8 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
                 borderTopColor: '#2563eb', borderRadius: '50%',
                 animation: 'spin 0.7s linear infinite', flexShrink: 0,
               }} />
-              <span className="text-[12px] font-medium" style={{ color: '#2563eb', fontFamily: "'Poppins',sans-serif" }}>
+              <span className="text-[12px] font-medium"
+                style={{ color: '#2563eb', fontFamily: "'Poppins',sans-serif" }}>
                 {progress}
               </span>
             </div>
@@ -258,26 +257,3 @@ export default function EmailModal({ open, onClose, defaultSubject, defaultMessa
     </div>
   )
 }
-```
-
-Now go to your EmailJS template `template_4v3as9i` and make two changes:
-
-**1 — Enable Dynamic Attachments**
-Template editor → **Settings tab** → toggle **Dynamic Attachments** ON.
-
-**2 — Update the template to use the attachment variables**
-
-In the template body set this:
-```
-Subject: {{subject}}
-
-{{message}}
-```
-
-And in the **Attachments** field (appears after enabling Dynamic Attachments) add:
-```
-{{pdf_content}}
-```
-With filename:
-```
-{{pdf_name}}
