@@ -7,16 +7,15 @@ const NAV_ITEMS = [
   { id: 'criteria', icon: '⚙️', label: 'QA Criteria', section: 'Config' },
 ]
 
-function QISLogo() {
+function QISLogo({ height }) {
   return (
     <div
-      className="border-b border-border relative overflow-hidden flex items-center justify-center"
+      className="border-b border-border relative overflow-hidden flex items-center justify-center shrink-0"
       style={{
-        height: '57px',
+        height,
         background: 'linear-gradient(135deg, #0d1628 0%, #111c36 60%, #0a1220 100%)',
       }}
     >
-      {/* Subtle glow */}
       <div
         style={{
           position: 'absolute',
@@ -31,7 +30,6 @@ function QISLogo() {
       />
 
       <div className="relative flex items-center gap-3">
-        {/* Icon box */}
         <div
           style={{
             width: 34,
@@ -65,7 +63,6 @@ function QISLogo() {
           </svg>
         </div>
 
-        {/* Text stack */}
         <div className="flex flex-col justify-center">
           <span
             style={{
@@ -101,12 +98,11 @@ function QISLogo() {
   )
 }
 
-export default function Sidebar({ activePage, onNavigate }) {
+export default function Sidebar({ activePage, onNavigate, headerHeight }) {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[220px] bg-surface border-r border-border flex flex-col z-[100]">
-      <QISLogo />
+      <QISLogo height={headerHeight} />
 
-      {/* Nav */}
       <nav className="flex-1 p-3">
         {NAV_ITEMS.map((item) => (
           <div key={item.id}>
@@ -130,7 +126,6 @@ export default function Sidebar({ activePage, onNavigate }) {
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="p-4 border-t border-border">
         <div className="flex items-center gap-2.5 px-3 py-2.5 bg-surface2 rounded-lg border border-border">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent to-accent3 grid place-items-center text-[11px] font-bold shrink-0">QA</div>
