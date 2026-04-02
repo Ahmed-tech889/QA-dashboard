@@ -19,7 +19,7 @@ function QISLogo({ height }) {
           background: 'linear-gradient(135deg,#5b8af5,#2563eb)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <svg width="19" height="19" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="19" height="19" viewBox="0 0 30 30" fill="none">
             <circle cx="12" cy="12" r="7.5" stroke="white" strokeWidth="2.2"/>
             <line x1="17.8" y1="17.8" x2="24" y2="24" stroke="white" strokeWidth="2.4" strokeLinecap="round"/>
             <rect x="7.5" y="14" width="2.2" height="4" rx="0.6" fill="white"/>
@@ -28,17 +28,10 @@ function QISLogo({ height }) {
           </svg>
         </div>
         <div>
-          <div style={{
-            fontFamily: "'Poppins',sans-serif", fontWeight: 700,
-            fontSize: 17, color: '#1a1a2e', letterSpacing: 0.5,
-          }}>
+          <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 17, color: '#1a1a2e', letterSpacing: 0.5 }}>
             QIS
           </div>
-          <div style={{
-            fontFamily: "'Poppins',sans-serif", fontWeight: 400,
-            fontSize: 7, color: '#787890', letterSpacing: 1.2,
-            textTransform: 'uppercase', marginTop: 1, whiteSpace: 'nowrap',
-          }}>
+          <div style={{ fontFamily: "'Poppins',sans-serif", fontWeight: 400, fontSize: 7, color: '#787890', letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 1, whiteSpace: 'nowrap' }}>
             Quality Intelligence System
           </div>
         </div>
@@ -47,7 +40,7 @@ function QISLogo({ height }) {
   )
 }
 
-export default function Sidebar({ activePage, onNavigate, headerHeight }) {
+export default function Sidebar({ activePage, onNavigate, headerHeight, alertCount, criticalCount, onOpenAlerts }) {
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[220px] flex flex-col z-[100]"
       style={{ background: '#d8d8dc', borderRight: '1px solid #c8c8ce' }}>
@@ -56,6 +49,7 @@ export default function Sidebar({ activePage, onNavigate, headerHeight }) {
       <nav className="flex-1 p-3 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = activePage === item.id
+          const showBadge = item.id === 'agents' && alertCount > 0
           return (
             <div key={item.id}>
               {item.section && (
@@ -76,13 +70,51 @@ export default function Sidebar({ activePage, onNavigate, headerHeight }) {
                   boxShadow:   isActive ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                <div className="w-[7px] h-[7px] rounded-full shrink-0 transition-colors"
+                <div className="w-[7px] h-[7px] rounded-full shrink-0"
                   style={{ background: isActive ? '#2563eb' : item.dot }} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span
+                    className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0"
+                    style={{ background: criticalCount > 0 ? '#e11d48' : '#d97706', fontFamily: "'Poppins',sans-serif" }}>
+                    {alertCount}
+                  </span>
+                )}
               </button>
             </div>
           )
         })}
+
+        {/* Alerts button in sidebar */}
+        {alertCount > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div className="text-[10px] font-semibold tracking-[1.5px] uppercase px-3 mb-1.5"
+              style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>
+              Alerts
+            </div>
+            <button
+              onClick={onOpenAlerts}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer text-[13px] mb-0.5 transition-all text-left border hover:opacity-80"
+              style={{
+                fontFamily:  "'Poppins',sans-serif",
+                background:  criticalCount > 0 ? '#fde8ec' : '#fef3d8',
+                color:       criticalCount > 0 ? '#e11d48'  : '#d97706',
+                borderColor: criticalCount > 0 ? '#f8c0cc'  : '#f8dca0',
+                fontWeight:  600,
+              }}
+            >
+              <div className="w-[7px] h-[7px] rounded-full shrink-0 animate-pulse"
+                style={{ background: criticalCount > 0 ? '#e11d48' : '#d97706' }} />
+              <span className="flex-1">
+                {criticalCount > 0 ? `${criticalCount} Critical` : `${alertCount} Warning${alertCount > 1 ? 's' : ''}`}
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0"
+                style={{ background: criticalCount > 0 ? '#e11d48' : '#d97706' }}>
+                {alertCount}
+              </span>
+            </button>
+          </div>
+        )}
       </nav>
 
       <div className="p-4" style={{ borderTop: '1px solid #c8c8ce' }}>
