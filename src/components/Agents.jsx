@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { EmptyState, Modal } from './ui'
 import EmailModal from './EmailModal'
+import TrendChart from './TrendChart'
 
 const GRADIENTS = [
   'from-[#6366f1] to-[#8b5cf6]',
@@ -187,8 +188,7 @@ function buildAgentPdfHtml({ agent, agentReviews, scored, passes, fails, quality
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#fff;color:#111;font-family:'Poppins',Arial,sans-serif;font-size:12px;padding:40px;max-width:800px;margin:0 auto}
   h2{font-size:13px;font-weight:700;color:#111;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid #f3f4f6}
-</style>
-</head><body>
+</style></head><body>
   <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #e5e7eb;padding-bottom:16px;margin-bottom:24px">
     <div>
       <div style="font-size:22px;font-weight:800;letter-spacing:-0.4px">${agent.name}</div>
@@ -213,8 +213,7 @@ function buildAgentPdfHtml({ agent, agentReviews, scored, passes, fails, quality
         <div style="font-size:24px;font-weight:800;line-height:1;color:${c}">${v}</div>
       </div>`).join('')}
   </div>
-  <h2>Most Common Mistakes</h2>
-  ${mistakesHTML}
+  <h2>Most Common Mistakes</h2>${mistakesHTML}
   ${mistakes.length > 0 ? '<h2>Improvement Opportunities</h2>' + tipsHTML : ''}
   ${strengthsHTML}
   <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between">
@@ -225,10 +224,10 @@ function buildAgentPdfHtml({ agent, agentReviews, scored, passes, fails, quality
 }
 
 function ScorecardModal({ agent, state, onClose }) {
-  const [dateFrom,   setDateFrom]   = useState('')
-  const [dateTo,     setDateTo]     = useState('')
-  const [showNotes,  setShowNotes]  = useState(false)
-  const [emailOpen,  setEmailOpen]  = useState(false)
+  const [dateFrom,  setDateFrom]  = useState('')
+  const [dateTo,    setDateTo]    = useState('')
+  const [showNotes, setShowNotes] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
 
   const agentReviews = useMemo(() => {
     if (!agent) return []
@@ -240,6 +239,12 @@ function ScorecardModal({ agent, state, onClose }) {
       return true
     })
   }, [agent, state.reviews, dateFrom, dateTo])
+
+  // All agent reviews (unfiltered) for the trend chart
+  const allAgentReviews = useMemo(() =>
+    state.reviews.filter((r) => r.agentName === agent.name),
+    [agent, state.reviews]
+  )
 
   const scored       = agentReviews.filter((r) => r.result !== 'pending')
   const passes       = scored.filter((r) => r.result === 'pass').length
@@ -267,10 +272,10 @@ function ScorecardModal({ agent, state, onClose }) {
   const mistakes  = mistakeMap.filter((m) => m.failRate > 0)
   const strengths = mistakeMap.filter((m) => m.failRate === 0)
 
-  const rangeLabel   = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
-  const initials     = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-  const gradIdx      = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
-  const pdfData      = { agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel }
+  const rangeLabel = dateFrom || dateTo ? `${dateFrom || '…'} → ${dateTo || '…'}` : 'All time'
+  const initials   = agent.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+  const gradIdx    = [...agent.name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % GRADIENTS.length
+  const pdfData    = { agent, agentReviews, scored, passes, fails, qualityScore, passRate, mistakes, strengths, rangeLabel }
 
   const defaultEmailSubject = `Agent Scorecard — ${agent.name} — ${rangeLabel}`
   const defaultEmailMessage =
@@ -329,30 +334,18 @@ QA Team — Momentum Egypt`
 
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-          <DateRangeFilter
-            from={dateFrom} to={dateTo}
-            onFromChange={setDateFrom} onToChange={setDateTo}
-            onClear={() => { setDateFrom(''); setDateTo('') }}
-          />
+          <DateRangeFilter from={dateFrom} to={dateTo} onFromChange={setDateFrom} onToChange={setDateTo}
+            onClear={() => { setDateFrom(''); setDateTo('') }} />
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={() => setShowNotes(true)} className="relative hover:opacity-80"
               style={{ ...toolbarBtnStyle, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060' }}>
               Notes
               {notesCount > 0 && (
                 <span className="px-1.5 py-px rounded-full text-white font-semibold text-[9px]"
-                  style={{ background: '#2563eb', fontFamily: "'Poppins',sans-serif" }}>
-                  {notesCount}
-                </span>
+                  style={{ background: '#2563eb', fontFamily: "'Poppins',sans-serif" }}>{notesCount}</span>
               )}
             </button>
-            <button
-              onClick={() => {
-                const html = buildAgentPdfHtml(pdfData)
-                const win = window.open('', '_blank')
-                win.document.write(html)
-                win.document.close()
-                win.onload = () => { win.focus(); win.print() }
-              }}
+            <button onClick={() => { const html = buildAgentPdfHtml(pdfData); const win = window.open('','_blank'); win.document.write(html); win.document.close(); win.onload = () => { win.focus(); win.print() } }}
               className="hover:opacity-80"
               style={{ ...toolbarBtnStyle, background: '#dcdce0', border: '1px solid #c8c8ce', color: '#505060' }}>
               ⬇ Export PDF
@@ -380,13 +373,25 @@ QA Team — Momentum Egypt`
           <div className="text-center py-8 text-sm" style={{ color: '#8888a0' }}>No reviews found for this period.</div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            {/* Metric bars */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
               <MetricBar label="Quality Score" value={qualityScore} description="Passed attributes / (Passed + Failed) — N/A excluded" />
               <MetricBar label="Pass Rate"     value={passRate}     description="Passed calls / total scored calls" />
             </div>
 
+            {/* Per-agent trend chart — always uses all reviews for full history */}
+            <div className="mb-5 rounded-xl p-4" style={{ background: '#ebebee', border: '1px solid #d0d0d6' }}>
+              <div className="text-[11px] font-semibold uppercase tracking-widest mb-3"
+                style={{ color: '#8888a0', fontFamily: "'Poppins',sans-serif" }}>
+                Pass Rate Trend — Full History
+              </div>
+              <TrendChart reviews={allAgentReviews} height={160} />
+            </div>
+
+            {/* Most Common Mistakes */}
             <div className="mb-5">
-              <div className="font-bold text-sm mb-3 flex items-center gap-2" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
+              <div className="font-bold text-sm mb-3 flex items-center gap-2"
+                style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
                 Most Common Mistakes
                 <span className="text-[10px] font-normal" style={{ color: '#8888a0' }}>(by fail %)</span>
               </div>
@@ -426,9 +431,12 @@ QA Team — Momentum Egypt`
               )}
             </div>
 
+            {/* Improvement Opportunities */}
             {mistakes.length > 0 && (
               <div className="mb-5">
-                <div className="font-bold text-sm mb-3" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>Improvement Opportunities</div>
+                <div className="font-bold text-sm mb-3" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>
+                  Improvement Opportunities
+                </div>
                 <div className="flex flex-col gap-2">
                   {mistakes.slice(0, 4).map((m) => (
                     <div key={m.name} className="flex gap-3 px-4 py-3 rounded-lg"
@@ -444,6 +452,7 @@ QA Team — Momentum Egypt`
               </div>
             )}
 
+            {/* Strengths */}
             {strengths.length > 0 && (
               <div>
                 <div className="font-bold text-sm mb-3" style={{ color: '#1a1a2e', fontFamily: "'Poppins',sans-serif" }}>Strengths</div>
@@ -462,13 +471,13 @@ QA Team — Momentum Egypt`
       </Modal>
 
       {showNotes && <NotesModal agentReviews={agentReviews} onClose={() => setShowNotes(false)} />}
-
       <EmailModal
         open={emailOpen}
         onClose={() => setEmailOpen(false)}
         defaultSubject={defaultEmailSubject}
         defaultMessage={defaultEmailMessage}
         getPdfHtml={() => buildAgentPdfHtml(pdfData)}
+        filename={`QIS_Scorecard_${agent.name.replace(/\s+/g, '_')}.pdf`}
       />
     </>
   )
