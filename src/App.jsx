@@ -7,8 +7,10 @@ import Agents from './components/Agents'
 import Reports from './components/Reports'
 import Criteria from './components/Criteria'
 import DataManager from './components/DataManager'
+import AlertsPanel from './components/AlertsPanel'
 import { ToastContainer, Btn } from './components/ui'
 import { useStore } from './store/useStore'
+import { useAlerts } from './store/useAlerts'
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard',
@@ -22,9 +24,15 @@ const PAGE_TITLES = {
 const HEADER_HEIGHT = 57
 
 export default function App() {
-  const [page,        setPage]        = useState('dashboard')
-  const [dataManager, setDataManager] = useState(false)
-  const store = useStore()
+  const [page,         setPage]         = useState('dashboard')
+  const [dataManager,  setDataManager]  = useState(false)
+  const [alertsOpen,   setAlertsOpen]   = useState(false)
+  const store  = useStore()
+  const alerts = useAlerts(store.state.reviews)
+
+  const criticalCount = alerts.filter((a) => a.level === 'critical').length
+  const warningCount  = alerts.filter((a) => a.level === 'warning').length
+  const totalAlerts   = alerts.length
 
   const handleRestore = () => window.location.reload()
 
@@ -38,6 +46,8 @@ export default function App() {
             getCriteriaFailRates={store.getCriteriaFailRates}
             getReviewerActivity={store.getReviewerActivity}
             onNavigate={setPage}
+            alerts={alerts}
+            onOpenAlerts={() => setAlertsOpen(true)}
           />
         )
       case 'review':
@@ -84,7 +94,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bg text-txt" style={{ fontFamily: "'Poppins', sans-serif" }}>
-      <Sidebar activePage={page} onNavigate={setPage} headerHeight={HEADER_HEIGHT} />
+      <Sidebar
+        activePage={page}
+        onNavigate={setPage}
+        headerHeight={HEADER_HEIGHT}
+        alertCount={totalAlerts}
+        criticalCount={criticalCount}
+        onOpenAlerts={() => setAlertsOpen(true)}
+      />
       <main className="ml-[220px] min-h-screen flex flex-col">
         <div
           className="sticky top-0 z-50 px-8 flex items-center justify-between"
@@ -92,10 +109,27 @@ export default function App() {
         >
           <h1 className="font-bold text-[17px] text-txt">{PAGE_TITLES[page]}</h1>
           <div className="flex items-center gap-2.5">
-            {/* Backup button */}
+            {/* Alert bell */}
+            {totalAlerts > 0 && (
+              <button
+                onClick={() => setAlertsOpen(true)}
+                className="relative hover:opacity-80 transition-all"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', height: 34, borderRadius: 9,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Poppins',sans-serif",
+                  background: criticalCount > 0 ? '#fde8ec' : '#fef3d8',
+                  border: `1px solid ${criticalCount > 0 ? '#f8c0cc' : '#f8dca0'}`,
+                  color: criticalCount > 0 ? '#e11d48' : '#d97706',
+                }}
+              >
+                🔔
+                <span>{totalAlerts} Alert{totalAlerts !== 1 ? 's' : ''}</span>
+              </button>
+            )}
             <button
               onClick={() => setDataManager(true)}
-              title="Backup & Restore data"
               className="hover:opacity-80 transition-all"
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
@@ -118,6 +152,13 @@ export default function App() {
         open={dataManager}
         onClose={() => setDataManager(false)}
         onRestore={handleRestore}
+      />
+
+      <AlertsPanel
+        alerts={alerts}
+        open={alertsOpen}
+        onClose={() => setAlertsOpen(false)}
+        onNavigateAgents={() => setPage('agents')}
       />
 
       <ToastContainer />
