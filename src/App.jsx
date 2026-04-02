@@ -6,6 +6,7 @@ import CallLog from './components/CallLog'
 import Agents from './components/Agents'
 import Reports from './components/Reports'
 import Criteria from './components/Criteria'
+import DataManager from './components/DataManager'
 import { ToastContainer, Btn } from './components/ui'
 import { useStore } from './store/useStore'
 
@@ -21,8 +22,11 @@ const PAGE_TITLES = {
 const HEADER_HEIGHT = 57
 
 export default function App() {
-  const [page, setPage] = useState('dashboard')
+  const [page,        setPage]        = useState('dashboard')
+  const [dataManager, setDataManager] = useState(false)
   const store = useStore()
+
+  const handleRestore = () => window.location.reload()
 
   const renderPage = () => {
     switch (page) {
@@ -88,12 +92,34 @@ export default function App() {
         >
           <h1 className="font-bold text-[17px] text-txt">{PAGE_TITLES[page]}</h1>
           <div className="flex items-center gap-2.5">
+            {/* Backup button */}
+            <button
+              onClick={() => setDataManager(true)}
+              title="Backup & Restore data"
+              className="hover:opacity-80 transition-all"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 12px', height: 34, borderRadius: 9,
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                fontFamily: "'Poppins',sans-serif",
+                background: '#ccccd2', border: '1px solid #b8b8c0', color: '#505060',
+              }}
+            >
+              💾 Backup
+            </button>
             <Btn variant="ghost" onClick={() => setPage('calls')}>Call Log</Btn>
             <Btn onClick={() => setPage('review')}>+ New Review</Btn>
           </div>
         </div>
         <div className="flex-1">{renderPage()}</div>
       </main>
+
+      <DataManager
+        open={dataManager}
+        onClose={() => setDataManager(false)}
+        onRestore={handleRestore}
+      />
+
       <ToastContainer />
     </div>
   )
