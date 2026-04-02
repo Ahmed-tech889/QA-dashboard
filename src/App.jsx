@@ -6,6 +6,7 @@ import CallLog from './components/CallLog'
 import Agents from './components/Agents'
 import Reports from './components/Reports'
 import Criteria from './components/Criteria'
+import Coaching from './components/Coaching'
 import DataManager from './components/DataManager'
 import AlertsPanel from './components/AlertsPanel'
 import { ToastContainer, Btn } from './components/ui'
@@ -19,19 +20,19 @@ const PAGE_TITLES = {
   agents:    'Agents',
   reports:   'Reports',
   criteria:  'QA Criteria',
+  coaching:  'Coaching',
 }
 
 const HEADER_HEIGHT = 57
 
 export default function App() {
-  const [page,         setPage]         = useState('dashboard')
-  const [dataManager,  setDataManager]  = useState(false)
-  const [alertsOpen,   setAlertsOpen]   = useState(false)
+  const [page,           setPage]           = useState('dashboard')
+  const [dataManager,    setDataManager]    = useState(false)
+  const [alertsOpen,     setAlertsOpen]     = useState(false)
   const store  = useStore()
   const alerts = useAlerts(store.state.reviews)
 
   const criticalCount = alerts.filter((a) => a.level === 'critical').length
-  const warningCount  = alerts.filter((a) => a.level === 'warning').length
   const totalAlerts   = alerts.length
 
   const handleRestore = () => window.location.reload()
@@ -65,6 +66,9 @@ export default function App() {
             state={store.state}
             updateReview={store.updateReview}
             deleteReview={store.deleteReview}
+            bulkDeleteReviews={store.bulkDeleteReviews}
+            bulkAssignReviewer={store.bulkAssignReviewer}
+            flagForDispute={store.flagForDispute}
           />
         )
       case 'agents':
@@ -85,6 +89,18 @@ export default function App() {
             addCriterion={store.addCriterion}
             deleteCriterion={store.deleteCriterion}
             updateCriterionWeight={store.updateCriterionWeight}
+            addTemplate={store.addTemplate}
+            updateTemplate={store.updateTemplate}
+            deleteTemplate={store.deleteTemplate}
+          />
+        )
+      case 'coaching':
+        return (
+          <Coaching
+            state={store.state}
+            addCoachingSession={store.addCoachingSession}
+            updateCoachingSession={store.updateCoachingSession}
+            deleteCoachingSession={store.deleteCoachingSession}
           />
         )
       default:
@@ -109,11 +125,8 @@ export default function App() {
         >
           <h1 className="font-bold text-[17px] text-txt">{PAGE_TITLES[page]}</h1>
           <div className="flex items-center gap-2.5">
-            {/* Alert bell */}
             {totalAlerts > 0 && (
-              <button
-                onClick={() => setAlertsOpen(true)}
-                className="relative hover:opacity-80 transition-all"
+              <button onClick={() => setAlertsOpen(true)} className="relative hover:opacity-80 transition-all"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '6px 12px', height: 34, borderRadius: 9,
@@ -122,23 +135,18 @@ export default function App() {
                   background: criticalCount > 0 ? '#fde8ec' : '#fef3d8',
                   border: `1px solid ${criticalCount > 0 ? '#f8c0cc' : '#f8dca0'}`,
                   color: criticalCount > 0 ? '#e11d48' : '#d97706',
-                }}
-              >
-                🔔
-                <span>{totalAlerts} Alert{totalAlerts !== 1 ? 's' : ''}</span>
+                }}>
+                🔔 {totalAlerts} Alert{totalAlerts !== 1 ? 's' : ''}
               </button>
             )}
-            <button
-              onClick={() => setDataManager(true)}
-              className="hover:opacity-80 transition-all"
+            <button onClick={() => setDataManager(true)} className="hover:opacity-80 transition-all"
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '6px 12px', height: 34, borderRadius: 9,
                 fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 fontFamily: "'Poppins',sans-serif",
                 background: '#ccccd2', border: '1px solid #b8b8c0', color: '#505060',
-              }}
-            >
+              }}>
               💾 Backup
             </button>
             <Btn variant="ghost" onClick={() => setPage('calls')}>Call Log</Btn>
@@ -148,19 +156,9 @@ export default function App() {
         <div className="flex-1">{renderPage()}</div>
       </main>
 
-      <DataManager
-        open={dataManager}
-        onClose={() => setDataManager(false)}
-        onRestore={handleRestore}
-      />
-
-      <AlertsPanel
-        alerts={alerts}
-        open={alertsOpen}
-        onClose={() => setAlertsOpen(false)}
-        onNavigateAgents={() => setPage('agents')}
-      />
-
+      <DataManager open={dataManager} onClose={() => setDataManager(false)} onRestore={handleRestore} />
+      <AlertsPanel alerts={alerts} open={alertsOpen} onClose={() => setAlertsOpen(false)}
+        onNavigateAgents={() => setPage('agents')} />
       <ToastContainer />
     </div>
   )
